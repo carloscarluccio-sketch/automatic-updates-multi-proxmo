@@ -22,6 +22,7 @@ export const MainLayout: React.FC = () => {
           <Button color="inherit" onClick={() => navigate('/dashboard')}>Dashboard</Button>
           <Button color="inherit" onClick={() => navigate('/users')}>Users</Button>
           <Button color="inherit" onClick={() => navigate('/companies')}>Companies</Button>
+          <Button color="inherit" onClick={() => navigate('/vms')}>Virtual Machines</Button>
           <Button color="inherit" onClick={handleLogout}>Logout</Button>
         </Toolbar>
       </AppBar>

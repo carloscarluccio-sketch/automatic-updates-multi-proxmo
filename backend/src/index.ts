@@ -12,6 +12,7 @@ import { apiLimiter } from './middlewares/rateLimiter';
 import authRoutes from './routes/authRoutes';
 import usersRoutes from './routes/usersRoutes';
 import companiesRoutes from './routes/companiesRoutes';
+import vmsRoutes from './routes/vmsRoutes';
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/companies', companiesRoutes);
+app.use('/api/vms', vmsRoutes);
 
 // 404 handler
 app.use((_req, res) => {
