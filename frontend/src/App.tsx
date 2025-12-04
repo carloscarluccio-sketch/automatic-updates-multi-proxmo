@@ -4,6 +4,8 @@ import { CssBaseline } from '@mui/material';
 import { theme } from './theme/theme';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { UsersPage } from './pages/UsersPage';
+import { CompaniesPage } from './pages/CompaniesPage';
 import { MainLayout } from './components/layout/MainLayout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
@@ -17,6 +19,8 @@ function App() {
           <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
             <Route index element={<Navigate to="/dashboard" />} />
             <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="companies" element={<CompaniesPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Routes>

@@ -20,6 +20,8 @@ export const MainLayout: React.FC = () => {
         <Toolbar>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>Proxmox Multi-Tenant</Typography>
           <Button color="inherit" onClick={() => navigate('/dashboard')}>Dashboard</Button>
+          <Button color="inherit" onClick={() => navigate('/users')}>Users</Button>
+          <Button color="inherit" onClick={() => navigate('/companies')}>Companies</Button>
           <Button color="inherit" onClick={handleLogout}>Logout</Button>
         </Toolbar>
       </AppBar>
