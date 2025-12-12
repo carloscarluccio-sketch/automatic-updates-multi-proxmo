@@ -31,6 +31,9 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
+import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
+import ErrorIcon from '@mui/icons-material/Error';
+import { Checkbox } from '@mui/material';
 import { DataTable, Column } from '../components/common/DataTable';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
@@ -158,6 +161,11 @@ export const ClustersPage: React.FC = () => {
     open: false,
     expirationDays: 90
   });
+  const [selectedClusters, setSelectedClusters] = useState<number[]>([]);
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkOperation, setBulkOperation] = useState<'test' | 'push'>('test');
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkResults, setBulkResults] = useState<any>(null);
   const currentUser = useAuthStore((state) => state.user);
 
   useEffect(() => {
@@ -471,6 +479,66 @@ export const ClustersPage: React.FC = () => {
     }
   };
 
+  const handleSelectCluster = (clusterId: number) => {
+    setSelectedClusters(prev =>
+      prev.includes(clusterId)
+        ? prev.filter(id => id !== clusterId)
+        : [...prev, clusterId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedClusters.length === clusters.length) {
+      setSelectedClusters([]);
+    } else {
+      setSelectedClusters(clusters.map(c => c.id));
+    }
+  };
+
+  const handleBulkOperation = (operation: 'test' | 'push') => {
+    setBulkOperation(operation);
+    setBulkDialogOpen(true);
+  };
+
+  const executeBulkOperation = async () => {
+    try {
+      setBulkLoading(true);
+      const endpoint = bulkOperation === 'test'
+        ? '/bulk-clusters/test-connection'
+        : '/bulk-clusters/push-ssh-keys';
+
+      const response = await api.post(endpoint, {
+        cluster_ids: selectedClusters
+      });
+
+      if (response.data.success) {
+        const data = response.data.data;
+        setBulkResults(data);
+        showSnackbar(
+          `Operation completed: ${data.successful}/${data.total} successful`,
+          'success'
+        );
+        await loadClusters();
+        if (bulkOperation === 'push') {
+          await loadSSHKeyHealth();
+        }
+      }
+    } catch (error: any) {
+      showSnackbar(
+        `Bulk operation failed: ${error.response?.data?.message || error.message}`,
+        'error'
+      );
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const closeBulkDialog = () => {
+    setBulkDialogOpen(false);
+    setBulkResults(null);
+    setSelectedClusters([]);
+  };
+
   const getHealthStatusColor = (status: string) => {
     switch (status) {
       case 'excellent': return 'success';
@@ -498,6 +566,23 @@ export const ClustersPage: React.FC = () => {
   };
 
   const columns: Column[] = [
+    ...(currentUser?.role === 'super_admin' ? [{
+      id: 'select',
+      label: (
+        <Checkbox
+          checked={selectedClusters.length === clusters.length && clusters.length > 0}
+          indeterminate={selectedClusters.length > 0 && selectedClusters.length < clusters.length}
+          onChange={handleSelectAll}
+        />
+      ) as any,
+      minWidth: 50,
+      format: (_val: any, row: Cluster) => (
+        <Checkbox
+          checked={selectedClusters.includes(row.id)}
+          onChange={() => handleSelectCluster(row.id)}
+        />
+      ),
+    }] : []),
     { id: 'name', label: 'Name', minWidth: 150 },
     { id: 'location', label: 'Location', minWidth: 120, format: (value) => (value as string) || 'N/A' },
     { id: 'host', label: 'Host', minWidth: 150 },
@@ -774,6 +859,31 @@ export const ClustersPage: React.FC = () => {
           </Card>
         )}
 
+        {/* Bulk Actions Bar */}
+        {currentUser?.role === 'super_admin' && selectedClusters.length > 0 && (
+          <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center', p: 2, bgcolor: '#e3f2fd', borderRadius: 1 }}>
+            <Chip
+              icon={<PlaylistAddCheckIcon />}
+              label={`${selectedClusters.length} cluster(s) selected`}
+              onDelete={() => setSelectedClusters([])}
+              color="primary"
+            />
+            <Button
+              variant="outlined"
+              startIcon={<CheckCircleIcon />}
+              onClick={() => handleBulkOperation('test')}
+            >
+              Test Selected
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<VpnKeyIcon />}
+              onClick={() => handleBulkOperation('push')}
+            >
+              Push SSH Keys
+            </Button>
+          </Box>
+        )}
 
         <Alert severity="info" sx={{ mb: 3 }}>
           Found {clusters.length} Proxmox clusters. Click "Fetch Version" to get cluster version information.
@@ -902,6 +1012,95 @@ export const ClustersPage: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setExpirationDialog({ ...expirationDialog, open: false })}>Cancel</Button>
           <Button onClick={handleSetExpiration} variant="contained" color="primary">Set Expiration</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Operation Results Dialog */}
+      <Dialog open={bulkDialogOpen} onClose={closeBulkDialog} maxWidth="md" fullWidth>
+        <DialogTitle>
+          Bulk Operation: {bulkOperation === 'test' ? 'Test Connection' : 'Push SSH Keys'}
+        </DialogTitle>
+        <DialogContent>
+          {bulkLoading ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
+              <CircularProgress size={60} />
+              <Typography variant="body1" sx={{ mt: 2 }}>
+                {bulkOperation === 'test' ? 'Testing connections...' : 'Pushing SSH keys...'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Processing {selectedClusters.length} cluster(s)
+              </Typography>
+            </Box>
+          ) : bulkResults ? (
+            <Box sx={{ mt: 2 }}>
+              <Alert severity="success" sx={{ mb: 3 }}>
+                <Typography variant="h6">
+                  Operation Completed: {bulkResults.successful}/{bulkResults.total} successful
+                </Typography>
+                <Typography variant="body2">
+                  Duration: {bulkResults.duration_seconds} seconds
+                </Typography>
+              </Alert>
+
+              <Typography variant="h6" gutterBottom>Results by Cluster:</Typography>
+              <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
+                {bulkResults.results.map((result: any, index: number) => (
+                  <Card
+                    key={index}
+                    sx={{
+                      mb: 2,
+                      bgcolor: result.success ? '#f1f8e9' : '#ffebee',
+                      border: `1px solid ${result.success ? '#4caf50' : '#f44336'}`
+                    }}
+                  >
+                    <CardContent>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        {result.success ? (
+                          <CheckCircleIcon color="success" />
+                        ) : (
+                          <ErrorIcon color="error" />
+                        )}
+                        <Typography variant="h6">{result.cluster_name}</Typography>
+                        <Chip
+                          label={result.success ? 'Success' : 'Failed'}
+                          size="small"
+                          color={result.success ? 'success' : 'error'}
+                        />
+                      </Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Cluster ID: {result.cluster_id}
+                      </Typography>
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        {result.message}
+                      </Typography>
+                      {result.auth_method && (
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                          Auth method: {result.auth_method === 'ssh-key' ? 'SSH Key' : 'Password'}
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </Box>
+            </Box>
+          ) : (
+            <Typography>Ready to execute bulk operation on {selectedClusters.length} cluster(s).</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          {!bulkLoading && !bulkResults && (
+            <>
+              <Button onClick={closeBulkDialog}>Cancel</Button>
+              <Button onClick={executeBulkOperation} variant="contained" color="primary">
+                Execute
+              </Button>
+            </>
+          )}
+          {bulkResults && (
+            <Button onClick={closeBulkDialog} variant="contained">
+              Close
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 
