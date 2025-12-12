@@ -1,4 +1,4 @@
-// Authentication controller - login, logout, refresh
+// Authentication controller - login, logout, refresh with 2FA enforcement
 import { Request, Response } from 'express';
 import prisma from '../config/database';
 import { comparePassword } from '../utils/password';
@@ -8,23 +8,110 @@ import logger from '../utils/logger';
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body;
+    const { email, password, totp } = req.body;
 
     if (!email || !password) {
       res.status(400).json({ success: false, message: 'Email and password required' });
       return;
     }
 
-    // Find user
+    // Find user with company info
     const user = await prisma.users.findFirst({
       where: {
         OR: [{ email }, { username: email }],
       },
+      include: {
+        companies: {
+          select: {
+            id: true,
+            name: true,
+            require_2fa: true,
+          },
+        },
+      },
     });
 
     if (!user || !user.password_hash || !(await comparePassword(password, user.password_hash))) {
+      // Log failed login attempt
+      await prisma.activity_logs.create({
+        data: {
+          user_id: null,
+          company_id: null,
+          activity_type: 'authentication',
+          entity_type: 'user',
+          entity_id: null,
+          action: 'login',
+          description: `Failed login attempt for ${email}`,
+          status: 'failed',
+          ip_address: req.ip,
+          user_agent: req.get('user-agent') || null,
+        },
+      });
+
       res.status(401).json({ success: false, message: 'Invalid credentials' });
       return;
+    }
+
+    // Check 2FA enforcement
+    const company2FARequired = user.companies?.require_2fa || false;
+    const user2FARequired = user.two_factor_required || false;
+    const user2FAEnabled = user.two_factor_enabled || false;
+
+    // Determine if 2FA is required for this user
+    const is2FARequired = user2FARequired || company2FARequired;
+
+    // If 2FA is required but not enabled, prompt user to set it up
+    if (is2FARequired && !user2FAEnabled) {
+      res.status(403).json({
+        success: false,
+        message: '2FA is required for your account. Please contact your administrator to enable 2FA.',
+        requires2FASetup: true,
+        userId: user.id,
+      });
+      return;
+    }
+
+    // If 2FA is enabled, verify TOTP code
+    if (user2FAEnabled) {
+      if (!totp) {
+        res.status(200).json({
+          success: false,
+          message: '2FA code required',
+          requires2FA: true,
+          userId: user.id,
+        });
+        return;
+      }
+
+      // Verify TOTP code
+      const speakeasy = require('speakeasy');
+      const verified = speakeasy.totp.verify({
+        secret: user.two_factor_secret,
+        encoding: 'base32',
+        token: totp,
+        window: 2, // Allow 2 time steps before and after
+      });
+
+      if (!verified) {
+        // Log failed 2FA attempt
+        await prisma.activity_logs.create({
+          data: {
+            user_id: user.id,
+            company_id: user.company_id,
+            activity_type: 'authentication',
+            entity_type: 'user',
+            entity_id: user.id,
+            action: 'login',
+            description: `Failed 2FA verification for ${user.username}`,
+            status: 'failed',
+            ip_address: req.ip,
+            user_agent: req.get('user-agent') || null,
+          },
+        });
+
+        res.status(401).json({ success: false, message: 'Invalid 2FA code' });
+        return;
+      }
     }
 
     // Generate tokens
@@ -40,7 +127,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       },
     });
 
-    // Log activity
+    // Log successful login
     await prisma.activity_logs.create({
       data: {
         user_id: user.id,
@@ -49,10 +136,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         entity_type: 'user',
         entity_id: user.id,
         action: 'login',
-        description: `User ${user.username} logged in`,
+        description: `User ${user.username} logged in${user2FAEnabled ? ' with 2FA' : ''}`,
         status: 'success',
         ip_address: req.ip,
         user_agent: req.get('user-agent') || null,
+        metadata: JSON.stringify({
+          '2fa_used': user2FAEnabled,
+          '2fa_required': is2FARequired,
+        }),
       },
     });
 
@@ -65,6 +156,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           email: user.email,
           role: user.role,
           company_id: user.company_id,
+          two_factor_enabled: user2FAEnabled,
         },
         accessToken,
         refreshToken,

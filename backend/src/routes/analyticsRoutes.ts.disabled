@@ -1,0 +1,25 @@
+import express from 'express';
+import {
+  getVMAnalytics,
+  getVMAnalyticsSummary,
+  getClusterAnalytics,
+  getTopConsumers,
+} from '../controllers/analyticsController';
+import { authenticate } from '../middlewares/auth';
+
+const router = express.Router();
+
+// All analytics routes require authentication
+router.use(authenticate);
+
+// VM Analytics
+router.get('/vm/metrics', getVMAnalytics);
+router.get('/vm/summary', getVMAnalyticsSummary);
+
+// Cluster Analytics
+router.get('/cluster/:clusterId', getClusterAnalytics);
+
+// Top Consumers
+router.get('/top-consumers', getTopConsumers);
+
+export default router;

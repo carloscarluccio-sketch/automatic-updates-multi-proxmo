@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+// Use relative URL to go through nginx proxy (avoids mixed content issues with HTTPS)
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const api: AxiosInstance = axios.create({
   baseURL: API_URL,

@@ -1,0 +1,597 @@
+/**
+ * Enhanced VM Console Dialog Component
+ *
+ * Provides an embedded noVNC console viewer with advanced features:
+ * - Fixed clipboard with proper RFB events
+ * - Connection quality monitoring (FPS, latency)
+ * - Comprehensive special keys menu
+ * - Quality/compression settings
+ * - View-only mode option
+ * - Better error messages
+ * - Screenshot capture
+ */
+
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton,
+  Box,
+  Typography,
+  CircularProgress,
+  Alert,
+  Toolbar,
+  Tooltip,
+  Button,
+  Menu,
+  MenuItem,
+  Divider,
+  FormControl,
+  InputLabel,
+  Select,
+  Chip,
+  Snackbar,
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import ContentPasteIcon from '@mui/icons-material/ContentPaste';
+import KeyboardIcon from '@mui/icons-material/Keyboard';
+import SettingsIcon from '@mui/icons-material/Settings';
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import { VM } from '../services/vmsService';
+
+// noVNC imports
+declare global {
+  interface Window {
+    RFB: any;
+  }
+}
+
+interface VMConsoleDialogProps {
+  open: boolean;
+  onClose: () => void;
+  vm: VM | null;
+}
+
+interface ConnectionQuality {
+  fps: number;
+  latency: number;
+  quality: 'low' | 'medium' | 'high';
+}
+
+interface QualitySettings {
+  compression: number;
+  jpeg: number;
+}
+
+// Error code mappings
+const errorCodeMap: Record<string, string> = {
+  'ECONNREFUSED': 'Cannot connect to Proxmox. Check if cluster is online.',
+  'ETIMEDOUT': 'Connection timeout. Check network or VPN connection.',
+  'ENOTFOUND': 'Proxmox host not found. Verify cluster configuration.',
+  'UNAUTHORIZED': 'Authentication failed. Your session may have expired.',
+  'FORBIDDEN': 'Access denied. Check your permissions for this VM.',
+  'VM_NOT_RUNNING': 'VM is not running. Start the VM first.',
+  'VM_NOT_FOUND': 'VM not found in database.',
+  'CLUSTER_NOT_FOUND': 'Proxmox cluster not found.',
+  'TOKEN_EXPIRED': 'Your session has expired. Please login again.',
+};
+
+// Special key combinations
+const specialKeys = [
+  { name: 'Ctrl+Alt+Del', keys: ['ControlLeft', 'AltLeft', 'Delete'], divider: false },
+  { name: 'Ctrl+Alt+Backspace', keys: ['ControlLeft', 'AltLeft', 'Backspace'], divider: true },
+  { name: 'Ctrl+Alt+F1', keys: ['ControlLeft', 'AltLeft', 'F1'], divider: false },
+  { name: 'Ctrl+Alt+F2', keys: ['ControlLeft', 'AltLeft', 'F2'], divider: false },
+  { name: 'Ctrl+Alt+F3', keys: ['ControlLeft', 'AltLeft', 'F3'], divider: false },
+  { name: 'Ctrl+Alt+F4', keys: ['ControlLeft', 'AltLeft', 'F4'], divider: false },
+  { name: 'Ctrl+Alt+F5', keys: ['ControlLeft', 'AltLeft', 'F5'], divider: false },
+  { name: 'Ctrl+Alt+F6', keys: ['ControlLeft', 'AltLeft', 'F6'], divider: false },
+  { name: 'Ctrl+Alt+F7', keys: ['ControlLeft', 'AltLeft', 'F7'], divider: false },
+  { name: 'Ctrl+Alt+F8', keys: ['ControlLeft', 'AltLeft', 'F8'], divider: false },
+  { name: 'Ctrl+Alt+F9', keys: ['ControlLeft', 'AltLeft', 'F9'], divider: false },
+  { name: 'Ctrl+Alt+F10', keys: ['ControlLeft', 'AltLeft', 'F10'], divider: false },
+  { name: 'Ctrl+Alt+F11', keys: ['ControlLeft', 'AltLeft', 'F11'], divider: false },
+  { name: 'Ctrl+Alt+F12', keys: ['ControlLeft', 'AltLeft', 'F12'], divider: true },
+  { name: 'Windows Key', keys: ['MetaLeft'], divider: false },
+  { name: 'Alt+Tab', keys: ['AltLeft', 'Tab'], divider: false },
+];
+
+export const VMConsoleDialog: React.FC<VMConsoleDialogProps> = ({ open, onClose, vm }) => {
+  const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('connecting');
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [fullscreen, setFullscreen] = useState(false);
+  const [viewOnly, setViewOnly] = useState(false);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const rfbRef = useRef<any>(null);
+
+  // Menus
+  const [specialKeyMenu, setSpecialKeyMenu] = useState<null | HTMLElement>(null);
+  const [settingsMenu, setSettingsMenu] = useState<null | HTMLElement>(null);
+
+  // Connection quality
+  const [connectionQuality, setConnectionQuality] = useState<ConnectionQuality>({
+    fps: 0,
+    latency: 0,
+    quality: 'medium',
+  });
+
+  // Quality settings
+  const [qualitySettings, setQualitySettings] = useState<QualitySettings>({
+    compression: 2,
+    jpeg: 6,
+  });
+
+  // Notifications
+  const [notification, setNotification] = useState({ open: false, message: '' });
+
+  // FPS counter
+  const frameCountRef = useRef(0);
+  const lastFrameTimeRef = useRef(Date.now());
+  const fpsIntervalRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!open || !vm) {
+      // Disconnect if dialog closes
+      if (rfbRef.current) {
+        rfbRef.current.disconnect();
+        rfbRef.current = null;
+      }
+      if (fpsIntervalRef.current) {
+        clearInterval(fpsIntervalRef.current);
+      }
+      return;
+    }
+
+    // Load noVNC dynamically if not loaded
+    if (!window.RFB) {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/@novnc/novnc@1.4.0/core/rfb.js';
+      script.async = true;
+      script.onload = () => initConsole();
+      document.body.appendChild(script);
+    } else {
+      initConsole();
+    }
+
+    return () => {
+      if (rfbRef.current) {
+        rfbRef.current.disconnect();
+        rfbRef.current = null;
+      }
+      if (fpsIntervalRef.current) {
+        clearInterval(fpsIntervalRef.current);
+      }
+    };
+  }, [open, vm]);
+
+  const showNotification = (message: string) => {
+    setNotification({ open: true, message });
+  };
+
+  const parseErrorMessage = (error: string): string => {
+    // Check if error matches known codes
+    for (const [code, message] of Object.entries(errorCodeMap)) {
+      if (error.includes(code)) {
+        return message;
+      }
+    }
+    return error;
+  };
+
+  const initConsole = async () => {
+    if (!canvasRef.current || !vm) return;
+
+    try {
+      setStatus('connecting');
+      setErrorMessage('');
+
+      // Get JWT token from localStorage
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('TOKEN_EXPIRED');
+      }
+
+      // Build WebSocket URL to our proxy
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsHost = window.location.hostname;
+      const wsPort = '3001'; // Backend port
+      const wsUrl = `${wsProtocol}//${wsHost}:${wsPort}/console-proxy?vmId=${vm.id}&token=${token}`;
+
+      console.log('[CONSOLE] Connecting to:', wsUrl);
+
+      // Create RFB (Remote Frame Buffer) connection
+      const rfb = new window.RFB(canvasRef.current, wsUrl, {
+        credentials: { password: '' },
+        repeaterID: '',
+        shared: true,
+        wsProtocols: ['binary']
+      });
+
+      // Set quality settings
+      rfb.qualityLevel = qualitySettings.jpeg;
+      rfb.compressionLevel = qualitySettings.compression;
+      rfb.showDotCursor = true;
+
+      // Event handlers
+      rfb.addEventListener('connect', () => {
+        console.log('[CONSOLE] Connected');
+        setStatus('connected');
+        setErrorMessage('');
+        startFPSCounter();
+      });
+
+      rfb.addEventListener('disconnect', (e: any) => {
+        console.log('[CONSOLE] Disconnected:', e.detail);
+        setStatus('disconnected');
+        if (fpsIntervalRef.current) {
+          clearInterval(fpsIntervalRef.current);
+        }
+        if (e.detail.clean) {
+          setErrorMessage('Connection closed');
+        } else {
+          setErrorMessage(parseErrorMessage('Connection lost unexpectedly'));
+        }
+      });
+
+      rfb.addEventListener('credentialsrequired', () => {
+        console.log('[CONSOLE] Credentials required');
+        setErrorMessage(parseErrorMessage('UNAUTHORIZED'));
+        setStatus('error');
+      });
+
+      rfb.addEventListener('securityfailure', (e: any) => {
+        console.error('[CONSOLE] Security failure:', e.detail);
+        setErrorMessage(parseErrorMessage(`Security failure: ${e.detail.status}`));
+        setStatus('error');
+      });
+
+      // Clipboard event listener - FIXED
+      rfb.addEventListener('clipboard', (e: any) => {
+        console.log('[CONSOLE] Clipboard received from VM');
+        try {
+          navigator.clipboard.writeText(e.detail.text).then(() => {
+            showNotification('Copied from VM to clipboard');
+          }).catch((err) => {
+            console.error('[CONSOLE] Clipboard write failed:', err);
+          });
+        } catch (error) {
+          console.error('[CONSOLE] Clipboard error:', error);
+        }
+      });
+
+      // Set display settings
+      rfb.scaleViewport = true;
+      rfb.resizeSession = true;
+      rfb.clipViewport = false;
+      rfb.dragViewport = false;
+      rfb.viewOnly = viewOnly;
+
+      rfbRef.current = rfb;
+
+    } catch (error: any) {
+      console.error('[CONSOLE] Connection error:', error);
+      setErrorMessage(parseErrorMessage(error.message || 'Failed to connect to console'));
+      setStatus('error');
+    }
+  };
+
+  const startFPSCounter = () => {
+    frameCountRef.current = 0;
+    lastFrameTimeRef.current = Date.now();
+
+    fpsIntervalRef.current = setInterval(() => {
+      const now = Date.now();
+      const elapsed = now - lastFrameTimeRef.current;
+      if (elapsed >= 1000) {
+        const fps = Math.round((frameCountRef.current * 1000) / elapsed);
+        setConnectionQuality(prev => ({
+          ...prev,
+          fps,
+          quality: fps >= 25 ? 'high' : fps >= 15 ? 'medium' : 'low'
+        }));
+        frameCountRef.current = 0;
+        lastFrameTimeRef.current = now;
+      }
+      frameCountRef.current++;
+    }, 100);
+  };
+
+  const handleFullscreen = () => {
+    if (!fullscreen) {
+      canvasRef.current?.requestFullscreen?.();
+      setFullscreen(true);
+    } else {
+      document.exitFullscreen?.();
+      setFullscreen(false);
+    }
+  };
+
+  const handleSendKeys = (keys: string[]) => {
+    if (rfbRef.current) {
+      keys.forEach(key => {
+        rfbRef.current.sendKey(key);
+      });
+      setSpecialKeyMenu(null);
+      showNotification(`Sent: ${keys.join('+')}`);
+    }
+  };
+
+  const handleClipboardPaste = async () => {
+    if (!rfbRef.current) return;
+
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        rfbRef.current.clipboardPasteFrom(text);
+        showNotification('Pasted to VM');
+      }
+    } catch (error) {
+      console.error('[CONSOLE] Clipboard paste failed:', error);
+      setErrorMessage('Clipboard access denied. Grant permission in browser settings.');
+    }
+  };
+
+  const handleScreenshot = () => {
+    if (!canvasRef.current) return;
+
+    try {
+      const canvas = canvasRef.current.querySelector('canvas');
+      if (canvas) {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${vm?.name}-${Date.now()}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showNotification('Screenshot saved');
+          }
+        });
+      }
+    } catch (error) {
+      console.error('[CONSOLE] Screenshot failed:', error);
+      showNotification('Screenshot failed');
+    }
+  };
+
+  const handleQualityChange = (type: 'compression' | 'jpeg', value: number) => {
+    const newSettings = { ...qualitySettings, [type]: value };
+    setQualitySettings(newSettings);
+
+    if (rfbRef.current) {
+      if (type === 'compression') {
+        rfbRef.current.compressionLevel = value;
+      } else {
+        rfbRef.current.qualityLevel = value;
+      }
+      showNotification('Quality settings updated');
+    }
+  };
+
+  const handleViewOnlyToggle = () => {
+    const newViewOnly = !viewOnly;
+    setViewOnly(newViewOnly);
+
+    if (rfbRef.current) {
+      rfbRef.current.viewOnly = newViewOnly;
+      showNotification(newViewOnly ? 'View-only mode enabled' : 'View-only mode disabled');
+    }
+  };
+
+  const getQualityColor = () => {
+    switch (connectionQuality.quality) {
+      case 'high': return 'success';
+      case 'medium': return 'warning';
+      case 'low': return 'error';
+      default: return 'default';
+    }
+  };
+
+  return (
+    <>
+      <Dialog
+        open={open}
+        onClose={onClose}
+        maxWidth="xl"
+        fullWidth
+        fullScreen={fullscreen}
+        PaperProps={{
+          sx: {
+            height: fullscreen ? '100vh' : '90vh',
+            m: fullscreen ? 0 : 2
+          }
+        }}
+      >
+        <DialogTitle sx={{ p: 1 }}>
+          <Toolbar variant="dense" sx={{ px: 1 }}>
+            <Typography variant="h6" sx={{ flex: 1 }}>
+              Console: {vm?.name} (VMID: {vm?.vmid})
+            </Typography>
+
+            {/* Status indicator with quality */}
+            <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+              {status === 'connecting' && (
+                <>
+                  <CircularProgress size={16} sx={{ mr: 1 }} />
+                  <Typography variant="body2">Connecting...</Typography>
+                </>
+              )}
+              {status === 'connected' && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2" color="success.main">
+                    ● Connected
+                  </Typography>
+                  <Chip
+                    label={`${connectionQuality.fps} FPS`}
+                    size="small"
+                    color={getQualityColor()}
+                    sx={{ height: 20, fontSize: '0.7rem' }}
+                  />
+                </Box>
+              )}
+              {status === 'disconnected' && (
+                <Typography variant="body2" color="warning.main">
+                  ● Disconnected
+                </Typography>
+              )}
+              {status === 'error' && (
+                <Typography variant="body2" color="error.main">
+                  ● Error
+                </Typography>
+              )}
+            </Box>
+
+            {/* Toolbar buttons */}
+            {status === 'connected' && (
+              <>
+                <Tooltip title="Special Keys">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => setSpecialKeyMenu(e.currentTarget)}
+                  >
+                    <KeyboardIcon />
+                  </IconButton>
+                </Tooltip>
+
+                <Tooltip title="Paste to VM">
+                  <IconButton size="small" onClick={handleClipboardPaste}>
+                    <ContentPasteIcon />
+                  </IconButton>
+                </Tooltip>
+
+                <Tooltip title="Screenshot">
+                  <IconButton size="small" onClick={handleScreenshot}>
+                    <CameraAltIcon />
+                  </IconButton>
+                </Tooltip>
+
+                <Tooltip title={viewOnly ? 'Enable Control' : 'View Only'}>
+                  <IconButton size="small" onClick={handleViewOnlyToggle}>
+                    {viewOnly ? <VisibilityIcon /> : <VisibilityOffIcon />}
+                  </IconButton>
+                </Tooltip>
+
+                <Tooltip title="Settings">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => setSettingsMenu(e.currentTarget)}
+                  >
+                    <SettingsIcon />
+                  </IconButton>
+                </Tooltip>
+
+                <Tooltip title={fullscreen ? 'Exit Fullscreen' : 'Fullscreen'}>
+                  <IconButton size="small" onClick={handleFullscreen}>
+                    {fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                  </IconButton>
+                </Tooltip>
+              </>
+            )}
+
+            <IconButton size="small" onClick={onClose}>
+              <CloseIcon />
+            </IconButton>
+          </Toolbar>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 0, overflow: 'hidden', bgcolor: '#000' }}>
+          {errorMessage && (
+            <Alert severity="error" sx={{ m: 2 }}>
+              {errorMessage}
+              <Button size="small" onClick={initConsole} sx={{ ml: 2 }}>
+                Retry
+              </Button>
+            </Alert>
+          )}
+
+          <Box
+            ref={canvasRef}
+            sx={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: '#000'
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Special Keys Menu */}
+      <Menu
+        anchorEl={specialKeyMenu}
+        open={Boolean(specialKeyMenu)}
+        onClose={() => setSpecialKeyMenu(null)}
+      >
+        {specialKeys.map((key, index) => (
+          <React.Fragment key={index}>
+            <MenuItem onClick={() => handleSendKeys(key.keys)}>
+              {key.name}
+            </MenuItem>
+            {key.divider && <Divider />}
+          </React.Fragment>
+        ))}
+      </Menu>
+
+      {/* Settings Menu */}
+      <Menu
+        anchorEl={settingsMenu}
+        open={Boolean(settingsMenu)}
+        onClose={() => setSettingsMenu(null)}
+        PaperProps={{ sx: { width: 300, p: 2 } }}
+      >
+        <Typography variant="subtitle2" gutterBottom>Display Quality</Typography>
+        <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+          <InputLabel>JPEG Quality</InputLabel>
+          <Select
+            value={qualitySettings.jpeg}
+            label="JPEG Quality"
+            onChange={(e) => handleQualityChange('jpeg', Number(e.target.value))}
+          >
+            <MenuItem value={9}>Best (Slow)</MenuItem>
+            <MenuItem value={6}>Good (Default)</MenuItem>
+            <MenuItem value={3}>Medium</MenuItem>
+            <MenuItem value={0}>Fast (Low Quality)</MenuItem>
+          </Select>
+        </FormControl>
+
+        <FormControl fullWidth size="small">
+          <InputLabel>Compression</InputLabel>
+          <Select
+            value={qualitySettings.compression}
+            label="Compression"
+            onChange={(e) => handleQualityChange('compression', Number(e.target.value))}
+          >
+            <MenuItem value={0}>None (Best Quality)</MenuItem>
+            <MenuItem value={2}>Low (Default)</MenuItem>
+            <MenuItem value={5}>Medium</MenuItem>
+            <MenuItem value={9}>High (Faster)</MenuItem>
+          </Select>
+        </FormControl>
+
+        <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
+          Higher quality uses more bandwidth
+        </Typography>
+      </Menu>
+
+      {/* Notifications */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={3000}
+        onClose={() => setNotification({ open: false, message: '' })}
+        message={notification.message}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      />
+    </>
+  );
+};
+
+export default VMConsoleDialog;

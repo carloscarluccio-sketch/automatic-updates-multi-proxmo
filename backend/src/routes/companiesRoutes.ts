@@ -1,11 +1,14 @@
-// Companies routes
-import { Router } from 'express';
-import { getCompanies, createCompany } from '../controllers/companiesController';
-import { authenticate, requireRole } from '../middlewares/auth';
+import express from 'express';
+import { getCompanies, getCompany, createCompany, updateCompany, deleteCompany } from '../controllers/companiesController';
+import { authenticate } from '../middlewares/auth';
 
-const router = Router();
+const router = express.Router();
 
-router.get('/', authenticate, getCompanies);
-router.post('/', authenticate, requireRole('super_admin'), createCompany);
+router.use(authenticate);
+router.get('/', getCompanies);
+router.get('/:id', getCompany);
+router.post('/', createCompany);
+router.put('/:id', updateCompany);
+router.delete('/:id', deleteCompany);
 
 export default router;

@@ -8,6 +8,11 @@ export const apiLimiter = rateLimit({
   message: { success: false, message: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
+  // Skip validation - we're behind nginx on same machine
+  validate: {
+    trustProxy: false,
+    xForwardedForHeader: false,
+  },
 });
 
 export const authLimiter = rateLimit({
@@ -15,4 +20,9 @@ export const authLimiter = rateLimit({
   max: 5, // 5 attempts per window
   message: { success: false, message: 'Too many login attempts, please try again later' },
   skipSuccessfulRequests: true,
+  // Skip validation - we're behind nginx on same machine
+  validate: {
+    trustProxy: false,
+    xForwardedForHeader: false,
+  },
 });

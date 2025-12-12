@@ -1,0 +1,46 @@
+import express from 'express';
+import {
+  getVMs,
+  getVM,
+  createVM,
+  updateVM,
+  deleteVM,
+  getVMStatus,
+  controlVM,
+  cloneVM,
+  getVMConsole
+} from '../controllers/vmsController';
+import { authenticate } from '../middlewares/auth';
+
+const router = express.Router();
+
+router.use(authenticate);
+
+// List all VMs
+router.get('/', getVMs);
+
+// Get single VM
+router.get('/:id', getVM);
+
+// Get VM status from Proxmox
+router.get('/:id/status', getVMStatus);
+
+// Get console URL for VM
+router.get('/:id/console', getVMConsole);
+
+// Create new VM
+router.post('/', createVM);
+
+// Clone VM
+router.post('/:id/clone', cloneVM);
+
+// Control VM (start/stop/restart)
+router.post('/:id/control', controlVM);
+
+// Update VM
+router.put('/:id', updateVM);
+
+// Delete VM
+router.delete('/:id', deleteVM);
+
+export default router;

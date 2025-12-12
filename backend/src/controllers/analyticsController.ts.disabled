@@ -1,0 +1,382 @@
+import { Response } from 'express';
+import { AuthRequest } from '../middlewares/auth';
+import prisma from '../config/database';
+import logger from '../utils/logger';
+
+/**
+ * Get VM analytics/metrics
+ */
+export const getVMAnalytics = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { role, company_id } = req.user!;
+    const { vmId, companyId, clusterId, timeRange, limit } = req.query;
+
+    let where: any = {};
+
+    // Build where clause based on role and filters
+    if (role === 'super_admin') {
+      if (companyId) where.company_id = Number(companyId);
+      if (vmId) where.vm_id = Number(vmId);
+      if (clusterId) where.cluster_id = Number(clusterId);
+    } else if (company_id !== null) {
+      where.company_id = company_id;
+      if (vmId) where.vm_id = Number(vmId);
+      if (clusterId) where.cluster_id = Number(clusterId);
+    } else {
+      res.status(400).json({ success: false, message: 'No company associated with user' });
+      return;
+    }
+
+    // Time range filter
+    if (timeRange) {
+      const now = new Date();
+      let startTime: Date;
+
+      switch (timeRange) {
+        case '1h':
+          startTime = new Date(now.getTime() - 60 * 60 * 1000);
+          break;
+        case '24h':
+          startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case '7d':
+          startTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30d':
+          startTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000); // Default 24h
+      }
+
+      where.recorded_at = {
+        gte: startTime
+      };
+    }
+
+    const metrics = await prisma.vm_resource_metrics.findMany({
+      where,
+      include: {
+        virtual_machines: {
+          select: {
+            id: true,
+            name: true,
+            vmid: true,
+            node: true
+          }
+        },
+        companies: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        proxmox_clusters: {
+          select: {
+            id: true,
+            name: true,
+            host: true
+          }
+        }
+      },
+      orderBy: { recorded_at: 'desc' },
+      take: limit ? Number(limit) : 1000
+    });
+
+    res.json({ success: true, data: metrics });
+  } catch (error) {
+    logger.error('Get VM analytics error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch VM analytics' });
+  }
+};
+
+/**
+ * Get VM analytics summary/aggregated stats
+ */
+export const getVMAnalyticsSummary = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { role, company_id } = req.user!;
+    const { vmId, timeRange } = req.query;
+
+    let where: any = {};
+
+    if (role === 'super_admin') {
+      if (vmId) where.vm_id = Number(vmId);
+    } else if (company_id !== null) {
+      where.company_id = company_id;
+      if (vmId) where.vm_id = Number(vmId);
+    } else {
+      res.status(400).json({ success: false, message: 'No company associated with user' });
+      return;
+    }
+
+    // Time range filter
+    const now = new Date();
+    let startTime: Date;
+
+    switch (timeRange) {
+      case '1h':
+        startTime = new Date(now.getTime() - 60 * 60 * 1000);
+        break;
+      case '24h':
+        startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case '7d':
+        startTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    }
+
+    where.recorded_at = {
+      gte: startTime
+    };
+
+    const metrics = await prisma.vm_resource_metrics.findMany({
+      where,
+      select: {
+        cpu_usage: true,
+        memory_percent: true,
+        disk_read_bytes: true,
+        disk_write_bytes: true,
+        network_in_bytes: true,
+        network_out_bytes: true,
+        recorded_at: true
+      }
+    });
+
+    if (metrics.length === 0) {
+      res.json({
+        success: true,
+        data: {
+          avg_cpu: 0,
+          max_cpu: 0,
+          avg_memory: 0,
+          max_memory: 0,
+          total_disk_read: 0,
+          total_disk_write: 0,
+          total_network_in: 0,
+          total_network_out: 0,
+          data_points: 0
+        }
+      });
+      return;
+    }
+
+    // Calculate aggregated statistics
+    const summary = {
+      avg_cpu: metrics.reduce((sum, m) => sum + Number(m.cpu_usage), 0) / metrics.length,
+      max_cpu: Math.max(...metrics.map(m => Number(m.cpu_usage))),
+      avg_memory: metrics.reduce((sum, m) => sum + Number(m.memory_percent || 0), 0) / metrics.length,
+      max_memory: Math.max(...metrics.map(m => Number(m.memory_percent || 0))),
+      total_disk_read: metrics.reduce((sum, m) => sum + Number(m.disk_read_bytes || 0), 0),
+      total_disk_write: metrics.reduce((sum, m) => sum + Number(m.disk_write_bytes || 0), 0),
+      total_network_in: metrics.reduce((sum, m) => sum + Number(m.network_in_bytes || 0), 0),
+      total_network_out: metrics.reduce((sum, m) => sum + Number(m.network_out_bytes || 0), 0),
+      data_points: metrics.length
+    };
+
+    res.json({ success: true, data: summary });
+  } catch (error) {
+    logger.error('Get VM analytics summary error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch VM analytics summary' });
+  }
+};
+
+/**
+ * Get cluster-level analytics aggregated from VMs
+ */
+export const getClusterAnalytics = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { role, company_id } = req.user!;
+    const { clusterId, timeRange } = req.query;
+
+    if (!clusterId) {
+      res.status(400).json({ success: false, message: 'clusterId is required' });
+      return;
+    }
+
+    let where: any = {
+      cluster_id: Number(clusterId)
+    };
+
+    // Check access
+    if (role !== 'super_admin' && company_id !== null) {
+      where.company_id = company_id;
+    }
+
+    // Time range filter
+    const now = new Date();
+    let startTime: Date;
+
+    switch (timeRange) {
+      case '1h':
+        startTime = new Date(now.getTime() - 60 * 60 * 1000);
+        break;
+      case '24h':
+        startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case '7d':
+        startTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    }
+
+    where.recorded_at = {
+      gte: startTime
+    };
+
+    const metrics = await prisma.vm_resource_metrics.findMany({
+      where,
+      select: {
+        cpu_usage: true,
+        cpu_cores_used: true,
+        memory_usage: true,
+        memory_total: true,
+        memory_percent: true,
+        disk_read_bytes: true,
+        disk_write_bytes: true,
+        network_in_bytes: true,
+        network_out_bytes: true,
+        recorded_at: true,
+        vm_id: true
+      }
+    });
+
+    if (metrics.length === 0) {
+      res.json({
+        success: true,
+        data: {
+          total_vms: 0,
+          avg_cpu_usage: 0,
+          total_cpu_cores_used: 0,
+          total_memory_used: 0,
+          total_memory_capacity: 0,
+          avg_memory_percent: 0,
+          total_disk_read: 0,
+          total_disk_write: 0,
+          total_network_in: 0,
+          total_network_out: 0,
+          data_points: 0
+        }
+      });
+      return;
+    }
+
+    // Get unique VMs
+    const uniqueVMs = new Set(metrics.map(m => m.vm_id));
+
+    // Get latest metrics for totals (use most recent metric per VM)
+    const latestMetrics = new Map();
+    metrics.forEach(m => {
+      const existing = latestMetrics.get(m.vm_id);
+      if (!existing || m.recorded_at! > existing.recorded_at!) {
+        latestMetrics.set(m.vm_id, m);
+      }
+    });
+
+    const latest = Array.from(latestMetrics.values());
+
+    const summary = {
+      total_vms: uniqueVMs.size,
+      avg_cpu_usage: metrics.reduce((sum, m) => sum + Number(m.cpu_usage), 0) / metrics.length,
+      total_cpu_cores_used: latest.reduce((sum, m) => sum + Number(m.cpu_cores_used || 0), 0),
+      total_memory_used: latest.reduce((sum, m) => sum + Number(m.memory_usage), 0),
+      total_memory_capacity: latest.reduce((sum, m) => sum + Number(m.memory_total), 0),
+      avg_memory_percent: metrics.reduce((sum, m) => sum + Number(m.memory_percent || 0), 0) / metrics.length,
+      total_disk_read: metrics.reduce((sum, m) => sum + Number(m.disk_read_bytes || 0), 0),
+      total_disk_write: metrics.reduce((sum, m) => sum + Number(m.disk_write_bytes || 0), 0),
+      total_network_in: metrics.reduce((sum, m) => sum + Number(m.network_in_bytes || 0), 0),
+      total_network_out: metrics.reduce((sum, m) => sum + Number(m.network_out_bytes || 0), 0),
+      data_points: metrics.length
+    };
+
+    res.json({ success: true, data: summary });
+  } catch (error) {
+    logger.error('Get cluster analytics error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch cluster analytics' });
+  }
+};
+
+/**
+ * Get top resource consumers
+ */
+export const getTopConsumers = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { role, company_id } = req.user!;
+    const { metric = 'cpu', limit = 10 } = req.query;
+
+    let where: any = {};
+
+    if (role !== 'super_admin' && company_id !== null) {
+      where.company_id = company_id;
+    }
+
+    // Get latest metrics per VM
+    const recentTime = new Date(Date.now() - 5 * 60 * 1000); // Last 5 minutes
+    where.recorded_at = {
+      gte: recentTime
+    };
+
+    const metrics = await prisma.vm_resource_metrics.findMany({
+      where,
+      include: {
+        virtual_machines: {
+          select: {
+            id: true,
+            name: true,
+            vmid: true,
+            node: true
+          }
+        }
+      },
+      orderBy: { recorded_at: 'desc' }
+    });
+
+    // Get latest metric per VM
+    const latestByVM = new Map();
+    metrics.forEach(m => {
+      if (!latestByVM.has(m.vm_id)) {
+        latestByVM.set(m.vm_id, m);
+      }
+    });
+
+    const latest = Array.from(latestByVM.values());
+
+    // Sort by requested metric
+    let sorted;
+    switch (metric) {
+      case 'memory':
+        sorted = latest.sort((a, b) => Number(b.memory_percent) - Number(a.memory_percent));
+        break;
+      case 'disk':
+        sorted = latest.sort((a, b) =>
+          (Number(b.disk_read_bytes) + Number(b.disk_write_bytes)) -
+          (Number(a.disk_read_bytes) + Number(a.disk_write_bytes))
+        );
+        break;
+      case 'network':
+        sorted = latest.sort((a, b) =>
+          (Number(b.network_in_bytes) + Number(b.network_out_bytes)) -
+          (Number(a.network_in_bytes) + Number(a.network_out_bytes))
+        );
+        break;
+      default: // cpu
+        sorted = latest.sort((a, b) => Number(b.cpu_usage) - Number(a.cpu_usage));
+    }
+
+    const top = sorted.slice(0, Number(limit));
+
+    res.json({ success: true, data: top });
+  } catch (error) {
+    logger.error('Get top consumers error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch top consumers' });
+  }
+};

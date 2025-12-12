@@ -7,18 +7,15 @@ import {
   TableHead,
   TableRow,
   Paper,
-  IconButton,
-  Typography,
   Box,
+  Typography,
 } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 
 export interface Column {
   id: string;
   label: string;
   minWidth?: number;
-  format?: (value: any) => string;
+  format?: (value: any, row?: any) => string | React.ReactElement;
 }
 
 interface DataTableProps {
@@ -32,70 +29,45 @@ interface DataTableProps {
 export const DataTable: React.FC<DataTableProps> = ({
   columns,
   rows,
-  onEdit,
-  onDelete,
   emptyMessage = 'No data available',
 }) => {
   if (rows.length === 0) {
     return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Typography color="text.secondary">{emptyMessage}</Typography>
+      <Box sx={{ textAlign: 'center', py: 8 }}>
+        <Typography variant="body1" color="text.secondary">
+          {emptyMessage}
+        </Typography>
       </Box>
     );
   }
 
   return (
     <TableContainer component={Paper}>
-      <Table>
+      <Table stickyHeader>
         <TableHead>
           <TableRow>
             {columns.map((column) => (
-              <TableCell key={column.id} style={{ minWidth: column.minWidth }}>
-                <strong>{column.label}</strong>
+              <TableCell
+                key={column.id}
+                style={{ minWidth: column.minWidth }}
+                sx={{ fontWeight: 'bold' }}
+              >
+                {column.label}
               </TableCell>
             ))}
-            {(onEdit || onDelete) && (
-              <TableCell align="right">
-                <strong>Actions</strong>
-              </TableCell>
-            )}
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id} hover>
+          {rows.map((row, index) => (
+            <TableRow hover key={row.id || index}>
               {columns.map((column) => {
                 const value = row[column.id];
                 return (
                   <TableCell key={column.id}>
-                    {column.format ? column.format(value) : value}
+                    {column.format ? column.format(value, row) : value}
                   </TableCell>
                 );
               })}
-              {(onEdit || onDelete) && (
-                <TableCell align="right">
-                  {onEdit && (
-                    <IconButton
-                      size="small"
-                      color="primary"
-                      onClick={() => onEdit(row)}
-                      title="Edit"
-                    >
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                  )}
-                  {onDelete && (
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => onDelete(row)}
-                      title="Delete"
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  )}
-                </TableCell>
-              )}
             </TableRow>
           ))}
         </TableBody>

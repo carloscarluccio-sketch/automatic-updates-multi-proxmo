@@ -12,4 +12,7 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    target: 'esnext', // Support top-level await for noVNC
+  },
 });

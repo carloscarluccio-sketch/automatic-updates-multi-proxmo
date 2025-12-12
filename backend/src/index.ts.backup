@@ -1,0 +1,100 @@
+// Main Express application
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
+import config from './config/env';
+import logger from './utils/logger';
+import { errorHandler } from './middlewares/errorHandler';
+import { apiLimiter } from './middlewares/rateLimiter';
+
+// Routes
+import authRoutes from './routes/authRoutes';
+import usersRoutes from './routes/usersRoutes';
+import companiesRoutes from './routes/companiesRoutes';
+import vmsRoutes from './routes/vmsRoutes';
+import clustersRoutes from './routes/clustersRoutes';
+import projectsRoutes from './routes/projectsRoutes';
+import ipRangesRoutes from './routes/ipRangesRoutes';
+import statsRoutes from './routes/statsRoutes';
+import templatesRoutes from './routes/templatesRoutes';
+import brandingRoutes from './routes/brandingRoutes';
+import isosRoutes from './routes/isosRoutes';
+import apiTokensRoutes from './routes/apiTokensRoutes';
+import profilesRoutes from './routes/profilesRoutes';
+import natRoutes from './routes/natRoutes';
+import ssoRoutes from './routes/ssoRoutes';
+import twoFactorRoutes from './routes/twoFactorRoutes';
+import analyticsRoutes from './routes/analyticsRoutes';
+import activityLogsRoutes from './routes/activityLogsRoutes';
+import feedbackRoutes from './routes/feedbackRoutes';
+import opnsenseRoutes from './routes/opnsenseRoutes';
+import vmImportRoutes from './routes/vmImportRoutes';
+import billingRoutes from './routes/billingRoutes';
+
+const app = express();
+
+// Security middleware
+app.use(helmet());
+app.use(cors({
+  origin: config.CORS_ORIGINS,
+  credentials: true,
+}));
+
+// Body parsing middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+// Rate limiting
+app.use('/api', apiLimiter);
+
+// Health check
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// API routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api/companies', companiesRoutes);
+app.use('/api/vms', vmsRoutes);
+app.use('/api/clusters', clustersRoutes);
+app.use('/api/ip-ranges', ipRangesRoutes);
+app.use('/api/projects', projectsRoutes);
+app.use('/api/stats', statsRoutes);
+app.use('/api/templates', templatesRoutes);
+app.use('/api/companies', brandingRoutes);
+app.use('/api/isos', isosRoutes);
+app.use('/api/tokens', apiTokensRoutes);
+app.use('/api/profiles', profilesRoutes);
+app.use('/api/nat', natRoutes);
+app.use('/api/sso', ssoRoutes);
+app.use('/api/2fa', twoFactorRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/logs', activityLogsRoutes);
+app.use('/api/feedback', feedbackRoutes);
+app.use('/api/opnsense', opnsenseRoutes);
+app.use('/api/vm-import', vmImportRoutes);
+app.use('/api/billing', billingRoutes);
+
+// 404 handler
+app.use((_req, res) => {
+  res.status(404).json({ success: false, message: 'Route not found' });
+});
+
+// Error handler
+app.use(errorHandler);
+
+// Start server - bind to 0.0.0.0 to accept external connections
+const PORT = config.PORT;
+const HOST = '0.0.0.0';
+
+app.listen(PORT, HOST, () => {
+  logger.info(`🚀 Server running on http://${HOST}:${PORT}`);
+  logger.info(`Environment: ${config.NODE_ENV}`);
+  logger.info(`API URL: ${config.API_URL}`);
+  logger.info(`Accepting connections from all network interfaces`);
+});
+
+export default app;
