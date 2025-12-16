@@ -22,12 +22,14 @@ import {
   CircularProgress,
   Alert,
   SelectChangeEvent,
+  Button,
 } from '@mui/material';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import WarningIcon from '@mui/icons-material/Warning';
+import DownloadIcon from '@mui/icons-material/Download';
 import api from '../services/api';
 
 interface ActivityLog {
@@ -143,6 +145,52 @@ export const ActivityLogsPage: React.FC = () => {
     setTimeRange(event.target.value);
   };
 
+  const handleExportCSV = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (activityType) params.append("activity_type", activityType);
+      if (status) params.append("status", status);
+
+      const response = await api.get(`/logs/export/csv?${params.toString()}`, {
+        responseType: "blob"
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      const timestamp = new Date().toISOString().split("T")[0];
+      link.setAttribute("download", `activity_logs_${timestamp}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+    } catch (err) {
+      setError("Failed to export CSV");
+    }
+  };
+
+  const handleExportJSON = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (activityType) params.append("activity_type", activityType);
+      if (status) params.append("status", status);
+
+      const response = await api.get(`/logs/export/json?${params.toString()}`, {
+        responseType: "blob"
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      const timestamp = new Date().toISOString().split("T")[0];
+      link.setAttribute("download", `activity_logs_${timestamp}.json`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+    } catch (err) {
+      setError("Failed to export JSON");
+    }
+  };
+
   const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
@@ -211,6 +259,24 @@ export const ActivityLogsPage: React.FC = () => {
             <Typography variant="body1" color="textSecondary">
               System activity and audit trail
             </Typography>
+          </Box>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<DownloadIcon />}
+              onClick={handleExportCSV}
+            >
+              CSV
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<DownloadIcon />}
+              onClick={handleExportJSON}
+            >
+              JSON
+            </Button>
           </Box>
           <FormControl sx={{ minWidth: 150 }}>
             <InputLabel>Time Range</InputLabel>

@@ -1,4 +1,5 @@
 // Main Express application
+import path from "path";
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -34,6 +35,7 @@ import feedbackRoutes from './routes/feedbackRoutes';
 import opnsenseRoutes from './routes/opnsenseRoutes';
 import vmImportRoutes from './routes/vmImportRoutes';
 import billingRoutes from './routes/billingRoutes';
+import pricingPlanRoutes from './routes/pricingPlanRoutes';
 import pricingRoutes from './routes/pricingRoutes';
 import companyClusterRoutes from './routes/companyClusterRoutes';
 import paygRoutes from './routes/paygRoutes';
@@ -41,10 +43,12 @@ import invoicesRoutes from './routes/invoicesRoutes';
 import isoSyncRoutes from './routes/isoSyncRoutes';
 import backupSchedulesRoutes from './routes/backupSchedulesRoutes';
 import snapshotSchedulesRoutes from './routes/snapshotSchedulesRoutes';
+import onboardingRoutes from './routes/onboardingRoutes';
 import drTestSchedulesRoutes from './routes/drTestSchedulesRoutes';
 import drClusterPairsRoutes from './routes/drClusterPairsRoutes';
 import backupPoliciesRoutes from './routes/backupPoliciesRoutes';
 import vmTemplatesRoutes from './routes/vmTemplatesRoutes';
+import publicApiRoutes from './routes/publicApiRoutes';
 import alertRulesRoutes from './routes/alertRulesRoutes';
 import esxiRoutes from './routes/esxiRoutes';
 import batchIPRoutes from './routes/batchIPRoutes';
@@ -56,6 +60,13 @@ import subnetCalculatorRoutes from './routes/subnetCalculatorRoutes';
 import vmSchedulesRoutes from './routes/vmSchedulesRoutes';
 import resourceMonitoringRoutes from './routes/resourceMonitoringRoutes';
 import notificationRoutes from './routes/notificationRoutes';
+import helpRoutes from './routes/helpRoutes';
+import helpAdminRoutes from './routes/helpAdminRoutes';
+import supportTicketRoutes from './routes/supportTicketRoutes';
+import searchRoutes from './routes/searchRoutes';
+import webhookRoutes from './routes/webhookRoutes';
+import rateLimitRoutes from './routes/rateLimitRoutes';
+import notificationSettingsRoutes from './routes/notificationSettingsRoutes';
 
 const app = express();
 
@@ -74,6 +85,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+
+// Serve uploaded files
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 // Rate limiting
 app.use('/api', apiLimiter);
 
@@ -112,6 +126,7 @@ app.use('/api/logs', activityLogsRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/opnsense', opnsenseRoutes);
 app.use('/api/vm-import', vmImportRoutes);
+app.use('/api/pricing-plans', pricingPlanRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/pricing', pricingRoutes);
 app.use('/api/payg', paygRoutes);
@@ -132,6 +147,16 @@ app.use('/api/subnet-calculator', subnetCalculatorRoutes);
 app.use('/api/vm-schedules', vmSchedulesRoutes);
 app.use('/api/monitoring', resourceMonitoringRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/help', helpRoutes);
+app.use('/api/help-admin', helpAdminRoutes);
+app.use('/api/support-tickets', supportTicketRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/webhooks', webhookRoutes);
+app.use('/api/notification-settings', notificationSettingsRoutes);
+app.use('/api/rate-limits', rateLimitRoutes);
+app.use('/api/v1', publicApiRoutes);
+app.use('/api/public/onboarding', onboardingRoutes);
+app.use('/api/admin/onboarding', onboardingRoutes);
 
 // 404 handler
 app.use((_req, res) => {

@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider } from '@mui/material/styles';
 import { CssBaseline } from '@mui/material';
-import { theme } from './theme/theme';
+import { DynamicThemeProvider } from './theme/DynamicThemeProvider';
 import { LoginPage } from './pages/LoginPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import { DashboardPage } from './pages/DashboardPage';
 import UsersPage from './pages/UsersPage';
 import CompaniesPage from './pages/CompaniesPage';
@@ -22,12 +23,17 @@ import { TwoFactorAuthPage } from './pages/TwoFactorAuthPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { ActivityLogsPage } from './pages/ActivityLogsPage';
 import { FeedbackPage } from './pages/FeedbackPage';
+import HelpCenterPage from './pages/HelpCenterPage';
+import { ArticleManagementPage } from './pages/ArticleManagementPage';
 import { OPNsensePage } from './pages/OPNsensePage';
 import VMImportPage from './pages/VMImportPage';
 import BillingPage from './pages/BillingPage';
+import BillingDashboardPage from './pages/BillingDashboardPage';
+import PricingPlansPage from './pages/PricingPlansPage';
 import PricingManagementPage from './pages/PricingManagementPage';
 import UsageDashboardPage from './pages/UsageDashboardPage';
 import InvoiceManagementPage from './pages/InvoiceManagementPage';
+import ApiDocsPage from './pages/ApiDocsPage';
 import BackupSchedulesPage from './pages/BackupSchedulesPage';
 import SnapshotSchedulesPage from './pages/SnapshotSchedulesPage';
 import DRTestSchedulesPage from './pages/DRTestSchedulesPage';
@@ -40,16 +46,23 @@ import NotificationsPage from './pages/NotificationsPage';
 import ESXiPage from './pages/ESXiPage';
 import { IPTrackingPage } from './pages/IPTrackingPage';
 import IPReservationsPage from './pages/IPReservationsPage';
+import SupportTicketsPage from './pages/SupportTicketsPage';
+import WebhooksPage from './pages/WebhooksPage';
+import SubscriptionPlansPage from './pages/SubscriptionPlansPage';
+import RateLimitsPage from './pages/RateLimitsPage';
+import NotificationSettingsPage from './pages/NotificationSettingsPage';
 import { MainLayout } from './components/layout/MainLayout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
+    <DynamicThemeProvider>
       <CssBaseline />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
             <Route index element={<Navigate to="/dashboard" />} />
             <Route path="dashboard" element={<DashboardPage />} />
@@ -62,6 +75,7 @@ function App() {
             <Route path="templates" element={<TemplatesPage />} />
             <Route path="isos" element={<ISOsPage />} />
             <Route path="api-tokens" element={<APITokensPage />} />
+            <Route path="api-docs" element={<ApiDocsPage />} />
             <Route path="profiles" element={<ProfilesPage />} />
             <Route path="branding" element={<BrandingPage />} />
             <Route path="nat" element={<NATManagementPage />} />
@@ -71,9 +85,13 @@ function App() {
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="activity-logs" element={<ActivityLogsPage />} />
             <Route path="feedback" element={<FeedbackPage />} />
+            <Route path="help" element={<HelpCenterPage />} />
+            <Route path="help-admin/articles" element={<ArticleManagementPage />} />
             <Route path="opnsense" element={<OPNsensePage />} />
             <Route path="vm-import" element={<VMImportPage />} />
             <Route path="billing" element={<BillingPage />} />
+            <Route path="billing-dashboard" element={<BillingDashboardPage />} />
+            <Route path="pricing-plans" element={<PricingPlansPage />} />
             <Route path="usage-dashboard" element={<UsageDashboardPage />} />
             <Route path="invoices" element={<InvoiceManagementPage />} />
             <Route path="pricing" element={<PricingManagementPage />} />
@@ -89,11 +107,16 @@ function App() {
             <Route path="esxi-import" element={<ESXiPage />} />
             <Route path="ip-tracking" element={<IPTrackingPage />} />
             <Route path="ip-reservations" element={<IPReservationsPage />} />
+            <Route path="support-tickets" element={<SupportTicketsPage />} />
+            <Route path="webhooks" element={<WebhooksPage />} />
+            <Route path="subscriptions" element={<SubscriptionPlansPage />} />
+            <Route path="rate-limits" element={<RateLimitsPage />} />
+            <Route path="notification-settings" element={<NotificationSettingsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Routes>
       </BrowserRouter>
-    </ThemeProvider>
+    </DynamicThemeProvider>
   );
 }
 

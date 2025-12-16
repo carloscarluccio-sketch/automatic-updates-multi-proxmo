@@ -172,27 +172,51 @@ export const getTopConsumers = async (req: Request, res: Response) => {
 
     // Determine order by field based on metric
     const orderByField = metric === 'cpu' ? 'cpu_usage_percent' : metric === 'memory' ? 'memory_percent' : 'disk_used_gb';
-    const companyFilter = user.role !== 'super_admin' ? `AND m2.company_id = ${user.company_id}` : '';
 
-    const latestMetrics = await prisma.$queryRaw<any[]>`
-      SELECT
-        m.*,
-        vm.name as vm_name,
-        vm.vmid,
-        c.name as company_name
-      FROM vm_resource_metrics m
-      INNER JOIN (
-        SELECT vm_id, MAX(collected_at) as max_collected
-        FROM vm_resource_metrics m2
-        WHERE m2.collected_at >= ${oneHourAgo}
-        ${prisma.$queryRawUnsafe(companyFilter)}
-        GROUP BY vm_id
-      ) latest ON m.vm_id = latest.vm_id AND m.collected_at = latest.max_collected
-      INNER JOIN virtual_machines vm ON m.vm_id = vm.id
-      INNER JOIN companies c ON m.company_id = c.id
-      ORDER BY ${prisma.$queryRawUnsafe(`m.${orderByField} DESC`)}
-      LIMIT ${limitNum}
-    `;
+    let latestMetrics;
+
+    if (user.role !== 'super_admin') {
+      // Company-specific query
+      latestMetrics = await prisma.$queryRawUnsafe<any[]>(`
+        SELECT
+          m.*,
+          vm.name as vm_name,
+          vm.vmid,
+          c.name as company_name
+        FROM vm_resource_metrics m
+        INNER JOIN (
+          SELECT vm_id, MAX(collected_at) as max_collected
+          FROM vm_resource_metrics m2
+          WHERE m2.collected_at >= ?
+            AND m2.company_id = ?
+          GROUP BY vm_id
+        ) latest ON m.vm_id = latest.vm_id AND m.collected_at = latest.max_collected
+        INNER JOIN virtual_machines vm ON m.vm_id = vm.id
+        INNER JOIN companies c ON m.company_id = c.id
+        ORDER BY m.${orderByField} DESC
+        LIMIT ?
+      `, oneHourAgo, user.company_id, limitNum);
+    } else {
+      // Super admin query
+      latestMetrics = await prisma.$queryRawUnsafe<any[]>(`
+        SELECT
+          m.*,
+          vm.name as vm_name,
+          vm.vmid,
+          c.name as company_name
+        FROM vm_resource_metrics m
+        INNER JOIN (
+          SELECT vm_id, MAX(collected_at) as max_collected
+          FROM vm_resource_metrics m2
+          WHERE m2.collected_at >= ?
+          GROUP BY vm_id
+        ) latest ON m.vm_id = latest.vm_id AND m.collected_at = latest.max_collected
+        INNER JOIN virtual_machines vm ON m.vm_id = vm.id
+        INNER JOIN companies c ON m.company_id = c.id
+        ORDER BY m.${orderByField} DESC
+        LIMIT ?
+      `, oneHourAgo, limitNum);
+    }
 
     const topConsumers = latestMetrics.map((m) => ({
       vm_id: m.vm_id,

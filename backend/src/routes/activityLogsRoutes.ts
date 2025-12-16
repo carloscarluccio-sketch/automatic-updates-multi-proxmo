@@ -5,6 +5,10 @@ import {
   getAuditLogs,
   createActivityLog,
 } from '../controllers/activityLogsController';
+import {
+  exportActivityLogsCSV,
+  exportActivityLogsJSON,
+} from '../controllers/auditLogExportController';
 import { authenticate } from '../middlewares/auth';
 
 const router = express.Router();
@@ -19,5 +23,9 @@ router.post('/activity', createActivityLog);
 
 // Audit Logs
 router.get('/audit', getAuditLogs);
+
+// Export routes
+router.get('/export/csv', exportActivityLogsCSV);
+router.get('/export/json', exportActivityLogsJSON);
 
 export default router;

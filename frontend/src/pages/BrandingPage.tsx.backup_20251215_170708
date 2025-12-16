@@ -1,0 +1,813 @@
+import React, { useEffect, useState } from 'react';
+import { useBranding } from '../theme/DynamicThemeProvider';
+import {
+  Container,
+  Typography,
+  Box,
+  Button,
+  CircularProgress,
+  Alert,
+  Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  IconButton,
+  Tooltip,
+  Chip,
+  Switch,
+  FormControlLabel,
+  Tabs,
+  Tab,
+  Grid,
+  Card,
+  CardContent,
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import SaveIcon from '@mui/icons-material/Save';
+import { DataTable, Column } from '../components/common/DataTable';
+import { useAuthStore } from '../store/authStore';
+import api from '../services/api';
+
+interface URLMapping {
+  id: number;
+  company_id: number;
+  url_pattern: string;
+  logo_url: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  ssl_enabled: boolean;
+  ssl_certificate: string | null;
+  ssl_private_key: string | null;
+  ssl_chain: string | null;
+  use_letsencrypt: boolean;
+  letsencrypt_email: string | null;
+  ssl_status: string;
+  ssl_last_checked: string | null;
+  ssl_error_message: string | null;
+  companies: {
+    id: number;
+    name: string;
+  };
+}
+
+interface BrandingData {
+  id: number;
+  name: string;
+  logo_filename: string | null;
+  panel_name: string | null;
+  header_color: string | null;
+  menu_color: string | null;
+  login_bg_color: string | null;
+}
+
+export const BrandingPage: React.FC = () => {
+  const { refreshBranding: refreshTheme } = useBranding();
+  const [tabValue, setTabValue] = useState(0);
+  const [urlMappings, setURLMappings] = useState<URLMapping[]>([]);
+  const [branding, setBranding] = useState<BrandingData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  const [openURLDialog, setOpenURLDialog] = useState(false);
+  const [editingMapping, setEditingMapping] = useState<URLMapping | null>(null);
+  const [urlFormData, setUrlFormData] = useState({
+    url_pattern: '',
+    is_active: true,
+    ssl_enabled: false,
+    ssl_certificate: '',
+    ssl_private_key: '',
+    ssl_chain: '',
+    use_letsencrypt: false,
+    letsencrypt_email: '',
+  });
+  const [brandingFormData, setBrandingFormData] = useState({
+    logo_filename: '',
+    panel_name: '',
+    header_color: '#1976d2',
+    menu_color: '#424242',
+    login_bg_color: '#1a1a2e',
+  });
+  const currentUser = useAuthStore((state) => state.user);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [urlMappingLogoFile, setUrlMappingLogoFile] = useState<File | null>(null);
+  const [urlMappingLogoPreview, setUrlMappingLogoPreview] = useState<string | null>(null);
+  const [uploadingUrlMappingLogo, setUploadingUrlMappingLogo] = useState(false);
+
+
+  useEffect(() => {
+    loadData();
+  }, [currentUser]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      await Promise.all([loadURLMappings(), loadBranding()]);
+    } catch (error) {
+      showSnackbar('Failed to load data', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadURLMappings = async () => {
+    try {
+      const response = await api.get('/companies/url-mappings');
+      setURLMappings(response.data.data || []);
+    } catch (error) {
+      console.error('Failed to load URL mappings:', error);
+    }
+  };
+
+  const loadBranding = async () => {
+    try {
+      const response = await api.get('/companies/branding');
+      setBranding(response.data.data);
+      if (response.data.data) {
+        setBrandingFormData({
+          logo_filename: response.data.data.logo_filename || '',
+          panel_name: response.data.data.panel_name || '',
+          header_color: response.data.data.header_color || '#1976d2',
+          menu_color: response.data.data.menu_color || '#424242',
+          login_bg_color: response.data.data.login_bg_color || '#1a1a2e',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load branding:', error);
+    }
+  };
+
+  const showSnackbar = (message: string, severity: 'success' | 'error') => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  const handleOpenURLDialog = (mapping?: URLMapping) => {
+    if (mapping) {
+      setEditingMapping(mapping);
+      setUrlFormData({
+        url_pattern: mapping.url_pattern,
+        is_active: mapping.is_active,
+        ssl_enabled: mapping.ssl_enabled,
+        ssl_certificate: mapping.ssl_certificate || '',
+        ssl_private_key: mapping.ssl_private_key || '',
+        ssl_chain: mapping.ssl_chain || '',
+        use_letsencrypt: mapping.use_letsencrypt,
+        letsencrypt_email: mapping.letsencrypt_email || '',
+      });
+    } else {
+      setEditingMapping(null);
+      setUrlFormData({
+        url_pattern: '',
+        is_active: true,
+        ssl_enabled: false,
+        ssl_certificate: '',
+        ssl_private_key: '',
+        ssl_chain: '',
+        use_letsencrypt: false,
+        letsencrypt_email: '',
+      });
+    }
+    setOpenURLDialog(true);
+  };
+
+  const handleCloseURLDialog = () => {
+    setOpenURLDialog(false);
+    setEditingMapping(null);
+    setUrlMappingLogoFile(null);
+    setUrlMappingLogoPreview(null);
+  };
+
+  const handleSubmitURL = async () => {
+    try {
+      setLoading(true);
+      if (editingMapping) {
+        await api.put(`/companies/url-mappings/${editingMapping.id}`, urlFormData);
+        showSnackbar('URL mapping updated successfully', 'success');
+      } else {
+        await api.post('/companies/url-mappings', urlFormData);
+        showSnackbar('URL mapping created successfully', 'success');
+      }
+      handleCloseURLDialog();
+      await loadURLMappings();
+    } catch (error: any) {
+      showSnackbar(error.response?.data?.message || 'Operation failed', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteURL = async (mapping: URLMapping) => {
+    if (!window.confirm(`Are you sure you want to delete URL mapping "${mapping.url_pattern}"?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await api.delete(`/companies/url-mappings/${mapping.id}`);
+      showSnackbar('URL mapping deleted successfully', 'success');
+      await loadURLMappings();
+    } catch (error: any) {
+      showSnackbar(error.response?.data?.message || 'Failed to delete URL mapping', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveBranding = async () => {
+    try {
+      setLoading(true);
+      await api.put('/companies/branding', brandingFormData);
+      showSnackbar('Branding updated successfully', 'success');
+      await loadBranding();
+      // Refresh theme to apply new colors immediately
+      await refreshTheme();
+    } catch (error: any) {
+      showSnackbar(error.response?.data?.message || 'Failed to update branding', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogoUpload = async () => {
+    if (!logoFile) {
+      showSnackbar('Please select a logo file first', 'error');
+      return;
+    }
+    try {
+      setUploadingLogo(true);
+      const formData = new FormData();
+      formData.append('logo', logoFile);
+      await api.post('/companies/branding/logo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      showSnackbar('Logo uploaded successfully', 'success');
+      await loadBranding();
+      setLogoFile(null);
+      setLogoPreview(null);
+    } catch (error: any) {
+      console.error('Logo upload failed:', error);
+      showSnackbar(error.response?.data?.message || 'Failed to upload logo', 'error');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleLogoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDeleteLogo = async () => {
+    try {
+      await api.delete('/companies/branding/logo');
+      showSnackbar('Logo deleted successfully', 'success');
+      await loadBranding();
+    } catch (error: any) {
+      console.error('Logo delete failed:', error);
+      showSnackbar(error.response?.data?.message || 'Failed to delete logo', 'error');
+    }
+  };
+  const handleUrlMappingLogoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setUrlMappingLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUrlMappingLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUploadUrlMappingLogo = async () => {
+    if (!urlMappingLogoFile || !editingMapping) {
+      showSnackbar('Please select a logo file', 'error');
+      return;
+    }
+
+    try {
+      setUploadingUrlMappingLogo(true);
+      const formData = new FormData();
+      formData.append('logo', urlMappingLogoFile);
+
+      await api.post(`/companies/url-mappings/${editingMapping.id}/logo`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      showSnackbar('Logo uploaded successfully', 'success');
+      await loadURLMappings();
+      setUrlMappingLogoFile(null);
+      setUrlMappingLogoPreview(null);
+    } catch (error: any) {
+      console.error('URL mapping logo upload failed:', error);
+      showSnackbar(error.response?.data?.message || 'Failed to upload logo', 'error');
+    } finally {
+      setUploadingUrlMappingLogo(false);
+    }
+  };
+
+  const handleDeleteUrlMappingLogo = async () => {
+    if (!editingMapping?.id) {
+      showSnackbar('No URL mapping selected', 'error');
+      return;
+    }
+
+    try {
+      await api.delete(`/companies/url-mappings/${editingMapping.id}/logo`);
+      showSnackbar('Logo deleted successfully', 'success');
+      await loadURLMappings();
+    } catch (error: any) {
+      console.error('URL mapping logo delete failed:', error);
+      showSnackbar(error.response?.data?.message || 'Failed to delete logo', 'error');
+    }
+  };
+
+
+  const urlColumns: Column[] = [
+    { id: 'url_pattern', label: 'URL Pattern', minWidth: 200 },
+    {
+      id: 'is_active',
+      label: 'Status',
+      minWidth: 100,
+      format: (value) => (
+        <Chip label={value ? 'Active' : 'Inactive'} color={value ? 'success' : 'default'} size="small" />
+      ),
+    },
+    {
+      id: 'ssl_enabled',
+      label: 'SSL',
+      minWidth: 100,
+      format: (value, row: any) => (
+        <Box>
+          <Chip
+            label={value ? 'Enabled' : 'Disabled'}
+            color={value ? 'success' : 'default'}
+            size="small"
+          />
+          {value && row.ssl_status && (
+            <Typography variant="caption" display="block" color="textSecondary">
+              {row.ssl_status}
+            </Typography>
+          )}
+        </Box>
+      ),
+    },
+    {
+      id: 'use_letsencrypt',
+      label: "Let's Encrypt",
+      minWidth: 120,
+      format: (value) => <Chip label={value ? 'Yes' : 'No'} size="small" />,
+    },
+  ];
+
+  if (currentUser?.role === 'super_admin' || currentUser?.role === 'company_admin') {
+    urlColumns.push({
+      id: 'actions',
+      label: 'Actions',
+      minWidth: 150,
+      format: (_value, row: any) => (
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <Tooltip title="Edit">
+            <IconButton size="small" onClick={() => handleOpenURLDialog(row)}>
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton size="small" color="error" onClick={() => handleDeleteURL(row)}>
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ),
+    });
+  }
+
+  if (loading && !branding) {
+    return (
+      <Container maxWidth="xl">
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+          <CircularProgress />
+        </Box>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxWidth="xl">
+      <Box sx={{ py: 4 }}>
+        <Typography variant="h4" gutterBottom>
+          Company Branding & URL Mapping
+        </Typography>
+        <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
+          Customize your company's appearance and manage custom domains
+        </Typography>
+
+        <Tabs value={tabValue} onChange={(_e, newValue) => setTabValue(newValue)} sx={{ mb: 3 }}>
+          <Tab label="Branding" />
+          <Tab label="URL Mappings" />
+        </Tabs>
+
+        {/* Branding Tab */}
+        {tabValue === 0 && (
+          <Card>
+            <CardContent>
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <Typography variant="h6" gutterBottom>
+                    Company Branding Settings
+                  </Typography>
+                </Grid>
+<Grid item xs={12} md={6}>
+                  <Box>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Company Logo
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flexDirection: 'column' }}>
+                      <Button
+                        variant="contained"
+                        component="label"
+                        disabled={uploadingLogo}
+                      >
+                        Choose Logo
+                        <input
+                          type="file"
+                          hidden
+                          accept="image/*"
+                          onChange={handleLogoFileChange}
+                        />
+                      </Button>
+                      {logoFile && (
+                        <Typography variant="body2">
+                          Selected: {logoFile.name}
+                        </Typography>
+                      )}
+                      {logoFile && (
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          onClick={handleLogoUpload}
+                          disabled={uploadingLogo}
+                          size="small"
+                        >
+                          {uploadingLogo ? 'Uploading...' : 'Upload Logo'}
+                        </Button>
+                      )}
+                      {logoPreview && (
+                        <Box sx={{ mt: 1 }}>
+                          <img
+                            src={logoPreview}
+                            alt="Logo preview"
+                            style={{ maxWidth: '200px', maxHeight: '100px', objectFit: 'contain', border: '1px solid #ddd', padding: '8px' }}
+                          />
+                        </Box>
+                      )}
+                      {branding?.logo_filename && !logoPreview && (
+                        <Box sx={{ mt: 1 }}>
+                          <img
+                            src={`/uploads/logos/${branding.logo_filename}`}
+                            alt="Current logo"
+                            style={{ maxWidth: '200px', maxHeight: '100px', objectFit: 'contain', border: '1px solid #ddd', padding: '8px' }}
+                          />
+                          <Box sx={{ mt: 1 }}>
+                            <Button
+                              size="small"
+                              color="error"
+                              variant="outlined"
+                              onClick={handleDeleteLogo}
+                            >
+                              Delete Logo
+                            </Button>
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+                </Grid>                <Grid item xs={12} md={6}>
+                  <TextField
+                    label="Panel Name"
+                    value={brandingFormData.panel_name}
+                    onChange={(e) => setBrandingFormData({ ...brandingFormData, panel_name: e.target.value })}
+                    fullWidth
+                    helperText="Custom name for the panel"
+                  />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    label="Header Color"
+                    type="color"
+                    value={brandingFormData.header_color}
+                    onChange={(e) => setBrandingFormData({ ...brandingFormData, header_color: e.target.value })}
+                    fullWidth
+                    helperText="Header background color"
+                  />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    label="Menu Color"
+                    type="color"
+                    value={brandingFormData.menu_color}
+                    onChange={(e) => setBrandingFormData({ ...brandingFormData, menu_color: e.target.value })}
+                    fullWidth
+                    helperText="Menu background color"
+                  />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    label="Login Background Color"
+                    type="color"
+                    value={brandingFormData.login_bg_color}
+                    onChange={(e) => setBrandingFormData({ ...brandingFormData, login_bg_color: e.target.value })}
+                    fullWidth
+                    helperText="Login page background"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <Button
+                    variant="contained"
+                    startIcon={<SaveIcon />}
+                    onClick={handleSaveBranding}
+                    disabled={loading}
+                  >
+                    Save Branding
+                  </Button>
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* URL Mappings Tab */}
+        {tabValue === 1 && (
+          <>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Typography variant="h6">URL Mappings</Typography>
+              {(currentUser?.role === 'super_admin' || currentUser?.role === 'company_admin') && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => handleOpenURLDialog()}
+                  disabled={loading}
+                >
+                  Add URL Mapping
+                </Button>
+              )}
+            </Box>
+
+            <Alert severity="info" sx={{ mb: 3 }}>
+              Found {urlMappings.length} URL mappings. Configure custom domains and SSL certificates here.
+            </Alert>
+
+            <DataTable columns={urlColumns} rows={urlMappings} emptyMessage="No URL mappings found" />
+          </>
+        )}
+
+        {/* URL Mapping Dialog */}
+        <Dialog open={openURLDialog} onClose={handleCloseURLDialog} maxWidth="md" fullWidth>
+          <DialogTitle>{editingMapping ? 'Edit URL Mapping' : 'Add URL Mapping'}</DialogTitle>
+          <DialogContent>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+              <TextField
+                label="URL Pattern"
+                value={urlFormData.url_pattern}
+                onChange={(e) => setUrlFormData({ ...urlFormData, url_pattern: e.target.value })}
+                required
+                fullWidth
+                helperText="e.g., company.example.com"
+                disabled={!!editingMapping}
+              />
+
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={urlFormData.is_active}
+                    onChange={(e) => setUrlFormData({ ...urlFormData, is_active: e.target.checked })}
+                  />
+                }
+                label="Active"
+              />
+
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={urlFormData.ssl_enabled}
+                    onChange={(e) => setUrlFormData({ ...urlFormData, ssl_enabled: e.target.checked })}
+                  />
+                }
+                label="Enable SSL"
+              />
+
+              {urlFormData.ssl_enabled && (
+                <>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={urlFormData.use_letsencrypt}
+                        onChange={(e) =>
+                          setUrlFormData({ ...urlFormData, use_letsencrypt: e.target.checked })
+                        }
+                      />
+                    }
+                    label="Use Let's Encrypt (automatic SSL)"
+                  />
+
+                  {urlFormData.use_letsencrypt ? (
+                    <TextField
+                      label="Let's Encrypt Email"
+                      type="email"
+                      value={urlFormData.letsencrypt_email}
+                      onChange={(e) =>
+                        setUrlFormData({ ...urlFormData, letsencrypt_email: e.target.value })
+                      }
+                      fullWidth
+                      helperText="Email for SSL certificate notifications"
+                    />
+                  ) : (
+                    <>
+                      <TextField
+                        label="SSL Certificate"
+                        value={urlFormData.ssl_certificate}
+                        onChange={(e) =>
+                          setUrlFormData({ ...urlFormData, ssl_certificate: e.target.value })
+                        }
+                        multiline
+                        rows={4}
+                        fullWidth
+                        helperText="Paste certificate content"
+                      />
+                      <TextField
+                        label="SSL Private Key"
+                        value={urlFormData.ssl_private_key}
+                        onChange={(e) =>
+                          setUrlFormData({ ...urlFormData, ssl_private_key: e.target.value })
+                        }
+                        multiline
+                        rows={4}
+                        fullWidth
+                        helperText="Paste private key content"
+                      />
+                      <TextField
+                        label="SSL Chain (Optional)"
+                        value={urlFormData.ssl_chain}
+                        onChange={(e) => setUrlFormData({ ...urlFormData, ssl_chain: e.target.value })}
+                        multiline
+                        rows={3}
+                        fullWidth
+                        helperText="Paste certificate chain if required"
+                      />
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* Logo Upload Section */}
+              <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid #e0e0e0' }}>
+                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
+                  Custom Logo for this URL Mapping
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Upload a custom logo that will be displayed when users access this URL. This overrides the default company logo.
+                </Typography>
+
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      disabled={uploadingUrlMappingLogo || !editingMapping}
+                      size="small"
+                    >
+                      Choose Logo
+                      <input
+                        type="file"
+                        hidden
+                        accept="image/*"
+                        onChange={handleUrlMappingLogoFileChange}
+                      />
+                    </Button>
+
+                    {urlMappingLogoFile && (
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handleUploadUrlMappingLogo}
+                        disabled={uploadingUrlMappingLogo}
+                        size="small"
+                      >
+                        {uploadingUrlMappingLogo ? 'Uploading...' : 'Upload Logo'}
+                      </Button>
+                    )}
+                  </Box>
+
+                  {urlMappingLogoFile && (
+                    <Typography variant="body2" color="text.secondary">
+                      Selected: {urlMappingLogoFile.name}
+                    </Typography>
+                  )}
+
+                  {!editingMapping && (
+                    <Alert severity="info" sx={{ mt: 1 }}>
+                      Save the URL mapping first, then edit it to upload a custom logo.
+                    </Alert>
+                  )}
+
+                  {urlMappingLogoPreview && (
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="caption" display="block" gutterBottom>
+                        Preview:
+                      </Typography>
+                      <img
+                        src={urlMappingLogoPreview}
+                        alt="Logo preview"
+                        style={{
+                          maxWidth: '200px',
+                          maxHeight: '100px',
+                          objectFit: 'contain',
+                          border: '1px solid #ddd',
+                          padding: '8px',
+                          borderRadius: '4px'
+                        }}
+                      />
+                    </Box>
+                  )}
+
+                  {editingMapping?.logo_url && !urlMappingLogoPreview && (
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="caption" display="block" gutterBottom>
+                        Current logo:
+                      </Typography>
+                      <img
+                        src={editingMapping.logo_url}
+                        alt="Current logo"
+                        style={{
+                          maxWidth: '200px',
+                          maxHeight: '100px',
+                          objectFit: 'contain',
+                          border: '1px solid #ddd',
+                          padding: '8px',
+                          borderRadius: '4px'
+                        }}
+                      />
+                      <Box sx={{ mt: 1 }}>
+                        <Button
+                          size="small"
+                          color="error"
+                          variant="outlined"
+                          onClick={handleDeleteUrlMappingLogo}
+                        >
+                          Delete Logo
+                        </Button>
+                      </Box>
+                    </Box>
+                  )}
+
+                  {!editingMapping?.logo_url && !urlMappingLogoPreview && editingMapping && (
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                      No custom logo uploaded. Default company logo will be used.
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseURLDialog} disabled={loading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitURL}
+              variant="contained"
+              disabled={loading || !urlFormData.url_pattern}
+            >
+              {editingMapping ? 'Update' : 'Create'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Box>
+    </Container>
+  );
+};

@@ -1,3 +1,4 @@
+import { trackConsoleActivity } from '../middlewares/vmActivityMiddleware';
 /**
  * Proxmox Console Proxy
  *
@@ -422,6 +423,8 @@ export function initializeConsoleProxy(options: ConsoleProxyOptions): void {
       });
 
       proxmoxWs.on('open', () => {
+        // Track console activity for auto-shutdown
+        trackConsoleActivity(vmId).catch((err: any) => logger.error("Failed to track console activity:", err));
         console.log(`✅ [PROXMOX] WebSocket connection established successfully!`);
       });
 

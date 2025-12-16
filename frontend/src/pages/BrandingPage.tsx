@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useBranding } from '../theme/DynamicThemeProvider';
 import {
   Container,
   Typography,
@@ -35,6 +36,7 @@ interface URLMapping {
   id: number;
   company_id: number;
   url_pattern: string;
+  logo_url: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -57,6 +59,7 @@ interface BrandingData {
   id: number;
   name: string;
   logo_filename: string | null;
+  favicon_filename: string | null;
   panel_name: string | null;
   header_color: string | null;
   menu_color: string | null;
@@ -64,6 +67,7 @@ interface BrandingData {
 }
 
 export const BrandingPage: React.FC = () => {
+  const { refreshBranding: refreshTheme } = useBranding();
   const [tabValue, setTabValue] = useState(0);
   const [urlMappings, setURLMappings] = useState<URLMapping[]>([]);
   const [branding, setBranding] = useState<BrandingData | null>(null);
@@ -83,12 +87,23 @@ export const BrandingPage: React.FC = () => {
   });
   const [brandingFormData, setBrandingFormData] = useState({
     logo_filename: '',
+    favicon_filename: '',
     panel_name: '',
     header_color: '#1976d2',
     menu_color: '#424242',
     login_bg_color: '#1a1a2e',
   });
   const currentUser = useAuthStore((state) => state.user);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [faviconFile, setFaviconFile] = useState<File | null>(null);
+  const [faviconPreview, setFaviconPreview] = useState<string | null>(null);
+  const [uploadingFavicon, setUploadingFavicon] = useState(false);
+  const [urlMappingLogoFile, setUrlMappingLogoFile] = useState<File | null>(null);
+  const [urlMappingLogoPreview, setUrlMappingLogoPreview] = useState<string | null>(null);
+  const [uploadingUrlMappingLogo, setUploadingUrlMappingLogo] = useState(false);
+
 
   useEffect(() => {
     loadData();
@@ -121,6 +136,7 @@ export const BrandingPage: React.FC = () => {
       if (response.data.data) {
         setBrandingFormData({
           logo_filename: response.data.data.logo_filename || '',
+          favicon_filename: response.data.data.favicon_filename || '',
           panel_name: response.data.data.panel_name || '',
           header_color: response.data.data.header_color || '#1976d2',
           menu_color: response.data.data.menu_color || '#424242',
@@ -168,6 +184,8 @@ export const BrandingPage: React.FC = () => {
   const handleCloseURLDialog = () => {
     setOpenURLDialog(false);
     setEditingMapping(null);
+    setUrlMappingLogoFile(null);
+    setUrlMappingLogoPreview(null);
   };
 
   const handleSubmitURL = async () => {
@@ -212,12 +230,169 @@ export const BrandingPage: React.FC = () => {
       await api.put('/companies/branding', brandingFormData);
       showSnackbar('Branding updated successfully', 'success');
       await loadBranding();
+      // Refresh theme to apply new colors immediately
+      await refreshTheme();
     } catch (error: any) {
       showSnackbar(error.response?.data?.message || 'Failed to update branding', 'error');
     } finally {
       setLoading(false);
     }
   };
+
+  const handleLogoUpload = async () => {
+    if (!logoFile) {
+      showSnackbar('Please select a logo file first', 'error');
+      return;
+    }
+    try {
+      setUploadingLogo(true);
+      const formData = new FormData();
+      formData.append('logo', logoFile);
+      await api.post('/companies/branding/logo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      showSnackbar('Logo uploaded successfully', 'success');
+      await loadBranding();
+      setLogoFile(null);
+      setLogoPreview(null);
+    } catch (error: any) {
+      console.error('Logo upload failed:', error);
+      showSnackbar(error.response?.data?.message || 'Failed to upload logo', 'error');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleLogoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDeleteLogo = async () => {
+    try {
+      await api.delete('/companies/branding/logo');
+      showSnackbar('Logo deleted successfully', 'success');
+      await loadBranding();
+    } catch (error: any) {
+      console.error('Logo delete failed:', error);
+      showSnackbar(error.response?.data?.message || 'Failed to delete logo', 'error');
+    }
+  };
+  const handleFaviconUpload = async () => {
+    if (!faviconFile) {
+      showSnackbar('Please select a favicon file first', 'error');
+      return;
+    }
+    try {
+      setUploadingFavicon(true);
+      const formData = new FormData();
+      formData.append('favicon', faviconFile);
+      await api.post('/companies/branding/favicon', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      showSnackbar('Favicon uploaded successfully', 'success');
+      await loadBranding();
+      setFaviconFile(null);
+      setFaviconPreview(null);
+    } catch (error: any) {
+      console.error('Favicon upload failed:', error);
+      showSnackbar(error.response?.data?.message || 'Failed to upload favicon', 'error');
+    } finally {
+      setUploadingFavicon(false);
+    }
+  };
+
+  const handleFaviconFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!file.name.match(/\.(ico|png)$/i)) {
+        showSnackbar('Please select a .ico or .png file', 'error');
+        return;
+      }
+      setFaviconFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFaviconPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDeleteFavicon = async () => {
+    try {
+      await api.delete('/companies/branding/favicon');
+      showSnackbar('Favicon deleted successfully', 'success');
+      await loadBranding();
+    } catch (error: any) {
+      console.error('Favicon delete failed:', error);
+      showSnackbar(error.response?.data?.message || 'Failed to delete favicon', 'error');
+    }
+  };
+
+  const handleUrlMappingLogoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setUrlMappingLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUrlMappingLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUploadUrlMappingLogo = async () => {
+    if (!urlMappingLogoFile || !editingMapping) {
+      showSnackbar('Please select a logo file', 'error');
+      return;
+    }
+
+    try {
+      setUploadingUrlMappingLogo(true);
+      const formData = new FormData();
+      formData.append('logo', urlMappingLogoFile);
+
+      await api.post(`/companies/url-mappings/${editingMapping.id}/logo`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      showSnackbar('Logo uploaded successfully', 'success');
+      await loadURLMappings();
+      setUrlMappingLogoFile(null);
+      setUrlMappingLogoPreview(null);
+    } catch (error: any) {
+      console.error('URL mapping logo upload failed:', error);
+      showSnackbar(error.response?.data?.message || 'Failed to upload logo', 'error');
+    } finally {
+      setUploadingUrlMappingLogo(false);
+    }
+  };
+
+  const handleDeleteUrlMappingLogo = async () => {
+    if (!editingMapping?.id) {
+      showSnackbar('No URL mapping selected', 'error');
+      return;
+    }
+
+    try {
+      await api.delete(`/companies/url-mappings/${editingMapping.id}/logo`);
+      showSnackbar('Logo deleted successfully', 'success');
+      await loadURLMappings();
+    } catch (error: any) {
+      console.error('URL mapping logo delete failed:', error);
+      showSnackbar(error.response?.data?.message || 'Failed to delete logo', 'error');
+    }
+  };
+
 
   const urlColumns: Column[] = [
     { id: 'url_pattern', label: 'URL Pattern', minWidth: 200 },
@@ -313,14 +488,139 @@ export const BrandingPage: React.FC = () => {
                     Company Branding Settings
                   </Typography>
                 </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    label="Logo Filename"
-                    value={brandingFormData.logo_filename}
-                    onChange={(e) => setBrandingFormData({ ...brandingFormData, logo_filename: e.target.value })}
-                    fullWidth
-                    helperText="Path to logo file (e.g., /uploads/logo.png)"
-                  />
+<Grid item xs={12} md={6}>
+                  <Box>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Company Logo
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flexDirection: 'column' }}>
+                      <Button
+                        variant="contained"
+                        component="label"
+                        disabled={uploadingLogo}
+                      >
+                        Choose Logo
+                        <input
+                          type="file"
+                          hidden
+                          accept="image/*"
+                          onChange={handleLogoFileChange}
+                        />
+                      </Button>
+                      {logoFile && (
+                        <Typography variant="body2">
+                          Selected: {logoFile.name}
+                        </Typography>
+                      )}
+                      {logoFile && (
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          onClick={handleLogoUpload}
+                          disabled={uploadingLogo}
+                          size="small"
+                        >
+                          {uploadingLogo ? 'Uploading...' : 'Upload Logo'}
+                        </Button>
+                      )}
+                      {logoPreview && (
+                        <Box sx={{ mt: 1 }}>
+                          <img
+                            src={logoPreview}
+                            alt="Logo preview"
+                            style={{ maxWidth: '200px', maxHeight: '100px', objectFit: 'contain', border: '1px solid #ddd', padding: '8px' }}
+                          />
+                        </Box>
+                      )}
+                      {branding?.logo_filename && !logoPreview && (
+                        <Box sx={{ mt: 1 }}>
+                          <img
+                            src={`/uploads/logos/${branding.logo_filename}`}
+                            alt="Current logo"
+                            style={{ maxWidth: '200px', maxHeight: '100px', objectFit: 'contain', border: '1px solid #ddd', padding: '8px' }}
+                          />
+                          <Box sx={{ mt: 1 }}>
+                            <Button
+                              size="small"
+                              color="error"
+                              variant="outlined"
+                              onClick={handleDeleteLogo}
+                            >
+                              Delete Logo
+                            </Button>
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+                </Grid>                <Grid item xs={12} md={6}>
+                  <Box>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Company Favicon
+                    </Typography>
+                    <Typography variant="caption" color="textSecondary" sx={{ mb: 2, display: 'block' }}>
+                      Recommended: 16x16 or 32x32 pixels (.ico or .png)
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flexDirection: 'column' }}>
+                      <Button
+                        variant="contained"
+                        component="label"
+                        disabled={uploadingFavicon}
+                      >
+                        Choose Favicon
+                        <input
+                          type="file"
+                          hidden
+                          accept=".ico,.png,image/x-icon,image/png"
+                          onChange={handleFaviconFileChange}
+                        />
+                      </Button>
+                      {faviconFile && (
+                        <Typography variant="body2">
+                          Selected: {faviconFile.name}
+                        </Typography>
+                      )}
+                      {faviconFile && (
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          onClick={handleFaviconUpload}
+                          disabled={uploadingFavicon}
+                          size="small"
+                        >
+                          {uploadingFavicon ? 'Uploading...' : 'Upload Favicon'}
+                        </Button>
+                      )}
+                      {faviconPreview && (
+                        <Box sx={{ mt: 1 }}>
+                          <img
+                            src={faviconPreview}
+                            alt="Favicon preview"
+                            style={{ maxWidth: '32px', maxHeight: '32px', objectFit: 'contain', border: '1px solid #ddd', padding: '4px' }}
+                          />
+                        </Box>
+                      )}
+                      {branding?.favicon_filename && !faviconPreview && (
+                        <Box sx={{ mt: 1 }}>
+                          <img
+                            src={`/uploads/favicons/${branding.favicon_filename}`}
+                            alt="Current favicon"
+                            style={{ maxWidth: '32px', maxHeight: '32px', objectFit: 'contain', border: '1px solid #ddd', padding: '4px' }}
+                          />
+                          <Box sx={{ mt: 1 }}>
+                            <Button
+                              size="small"
+                              color="error"
+                              variant="outlined"
+                              onClick={handleDeleteFavicon}
+                            >
+                              Delete Favicon
+                            </Button>
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <TextField
@@ -498,6 +798,115 @@ export const BrandingPage: React.FC = () => {
                   )}
                 </>
               )}
+
+              {/* Logo Upload Section */}
+              <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid #e0e0e0' }}>
+                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
+                  Custom Logo for this URL Mapping
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Upload a custom logo that will be displayed when users access this URL. This overrides the default company logo.
+                </Typography>
+
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      disabled={uploadingUrlMappingLogo || !editingMapping}
+                      size="small"
+                    >
+                      Choose Logo
+                      <input
+                        type="file"
+                        hidden
+                        accept="image/*"
+                        onChange={handleUrlMappingLogoFileChange}
+                      />
+                    </Button>
+
+                    {urlMappingLogoFile && (
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handleUploadUrlMappingLogo}
+                        disabled={uploadingUrlMappingLogo}
+                        size="small"
+                      >
+                        {uploadingUrlMappingLogo ? 'Uploading...' : 'Upload Logo'}
+                      </Button>
+                    )}
+                  </Box>
+
+                  {urlMappingLogoFile && (
+                    <Typography variant="body2" color="text.secondary">
+                      Selected: {urlMappingLogoFile.name}
+                    </Typography>
+                  )}
+
+                  {!editingMapping && (
+                    <Alert severity="info" sx={{ mt: 1 }}>
+                      Save the URL mapping first, then edit it to upload a custom logo.
+                    </Alert>
+                  )}
+
+                  {urlMappingLogoPreview && (
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="caption" display="block" gutterBottom>
+                        Preview:
+                      </Typography>
+                      <img
+                        src={urlMappingLogoPreview}
+                        alt="Logo preview"
+                        style={{
+                          maxWidth: '200px',
+                          maxHeight: '100px',
+                          objectFit: 'contain',
+                          border: '1px solid #ddd',
+                          padding: '8px',
+                          borderRadius: '4px'
+                        }}
+                      />
+                    </Box>
+                  )}
+
+                  {editingMapping?.logo_url && !urlMappingLogoPreview && (
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="caption" display="block" gutterBottom>
+                        Current logo:
+                      </Typography>
+                      <img
+                        src={editingMapping.logo_url}
+                        alt="Current logo"
+                        style={{
+                          maxWidth: '200px',
+                          maxHeight: '100px',
+                          objectFit: 'contain',
+                          border: '1px solid #ddd',
+                          padding: '8px',
+                          borderRadius: '4px'
+                        }}
+                      />
+                      <Box sx={{ mt: 1 }}>
+                        <Button
+                          size="small"
+                          color="error"
+                          variant="outlined"
+                          onClick={handleDeleteUrlMappingLogo}
+                        >
+                          Delete Logo
+                        </Button>
+                      </Box>
+                    </Box>
+                  )}
+
+                  {!editingMapping?.logo_url && !urlMappingLogoPreview && editingMapping && (
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                      No custom logo uploaded. Default company logo will be used.
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
             </Box>
           </DialogContent>
           <DialogActions>

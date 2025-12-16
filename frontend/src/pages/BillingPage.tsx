@@ -122,7 +122,7 @@ const BillingPage: React.FC = () => {
     try {
       setLoading(true);
       setError('');
-      const response = await api.get(`/billing/overview?companyId=${companyId}`);
+      const response = await api.get(`/billing/estimate?company_id=${companyId}`);
       setBillingOverview(response.data.data);
       setViewMode('company');
     } catch (error: any) {
@@ -429,7 +429,7 @@ const BillingPage: React.FC = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {allCompaniesBilling.companies.map((company) => (
+                      {allCompaniesBilling?.companies?.map((company) => (
                         <TableRow key={company.company_id} hover>
                           <TableCell>{company.company_name}</TableCell>
                           <TableCell align="right">{company.vm_count}</TableCell>

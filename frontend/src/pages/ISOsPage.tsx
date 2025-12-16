@@ -31,6 +31,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import StorageIcon from '@mui/icons-material/Storage';
 import SyncIcon from '@mui/icons-material/Sync';
@@ -84,6 +85,9 @@ interface SyncJob {
 export const ISOsPage: React.FC = () => {
   const [isos, setISOs] = useState<ISO[]>([]);
   const [clusters, setClusters] = useState<Cluster[]>([]);
+  const [nodes, setNodes] = useState<string[]>([]);
+  const [storages, setStorages] = useState<string[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [openDialog, setOpenDialog] = useState(false);
@@ -104,6 +108,9 @@ export const ISOsPage: React.FC = () => {
     is_default: false,
     description: '',
   });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState(false);
   const currentUser = useAuthStore((state) => state.user);
 
   useEffect(() => {
@@ -132,6 +139,71 @@ export const ISOsPage: React.FC = () => {
       setLoading(false);
     }
   };
+  const fetchClusterNodes = async (clusterId: string) => {
+    if (!clusterId) {
+      setNodes([]);
+      setStorages([]);
+      return;
+    }
+    
+    try {
+      const response = await api.get(`/clusters/${clusterId}/nodes`);
+      if (response.data.success && response.data.data) {
+        const nodeNames = response.data.data.map((node: any) => node.node);
+        setNodes(nodeNames);
+        
+        if (nodeNames.length > 0) {
+          const firstNode = nodeNames[0];
+          setFormData(prev => ({ ...prev, node: firstNode }));
+          fetchNodeStorages(clusterId, firstNode);
+        }
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch nodes:', error);
+      setSnackbar({ open: true, message: 'Failed to fetch cluster nodes', severity: 'error' });
+    }
+  };
+
+  const fetchNodeStorages = async (clusterId: string, nodeName: string) => {
+    if (!clusterId || !nodeName) {
+      setStorages([]);
+      return;
+    }
+    
+    try {
+      const response = await api.get(`/clusters/${clusterId}/nodes/${nodeName}/storages`);
+      if (response.data.success && response.data.data) {
+        const storageNames = response.data.data
+          .filter((storage: any) => storage.content && storage.content.includes('iso'))
+          .map((storage: any) => storage.storage);
+        setStorages(storageNames);
+        
+        if (storageNames.length > 0) {
+          setFormData(prev => ({ ...prev, storage: storageNames[0] }));
+        }
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch storages:', error);
+      setSnackbar({ open: true, message: 'Failed to fetch node storages', severity: 'error' });
+    }
+  };
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      // Auto-fill filename and size if not already set
+      if (!formData.filename) {
+        setFormData(prev => ({ 
+          ...prev, 
+          filename: file.name,
+          size_bytes: file.size.toString(),
+          name: file.name.replace(/\.iso$/i, '')
+        }));
+      }
+    }
+  };
+
+
 
   const loadISOs = async () => {
     try {
@@ -245,6 +317,46 @@ export const ISOsPage: React.FC = () => {
   const handleSubmit = async () => {
     try {
       setLoading(true);
+      
+      // If a file is selected, upload it first with progress tracking
+      if (selectedFile && formData.cluster_id && formData.node && formData.storage) {
+        setIsUploading(true);
+        setUploadProgress(0);
+        
+        const uploadFormData = new FormData();
+        uploadFormData.append('file', selectedFile);
+        uploadFormData.append('cluster_id', formData.cluster_id);
+        uploadFormData.append('node', formData.node);
+        uploadFormData.append('storage', formData.storage);
+        
+        try {
+          const uploadResponse = await api.post('/isos/upload', uploadFormData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+            onUploadProgress: (progressEvent) => {
+              if (progressEvent.total) {
+                const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                setUploadProgress(percentCompleted);
+              }
+            },
+          });
+          
+          if (!uploadResponse.data.success) {
+            throw new Error(uploadResponse.data.message || 'Upload failed');
+          }
+          
+          showSnackbar(`ISO file uploaded successfully: ${selectedFile.name}`, 'success');
+          setIsUploading(false);
+        } catch (uploadError: any) {
+          showSnackbar('Upload failed: ' + (uploadError.response?.data?.message || uploadError.message), 'error');
+          setLoading(false);
+          setIsUploading(false);
+          setUploadProgress(0);
+          return;
+        }
+      }
+      
       const data = {
         ...formData,
         size_bytes: formData.size_bytes ? parseInt(formData.size_bytes) : null,
@@ -260,15 +372,19 @@ export const ISOsPage: React.FC = () => {
       }
 
       handleCloseDialog();
+      setSelectedFile(null);
+      setUploadProgress(0);
+      setIsUploading(false);
       await loadISOs();
     } catch (error: any) {
       showSnackbar(error.response?.data?.message || 'Operation failed', 'error');
+      setIsUploading(false);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (iso: ISO) => {
+    const handleDelete = async (iso: ISO) => {
     if (!window.confirm(`Are you sure you want to delete ISO "${iso.name}"?`)) {
       return;
     }
@@ -432,6 +548,27 @@ export const ISOsPage: React.FC = () => {
                 fullWidth
                 helperText="Display name for the ISO"
               />
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2 }}>
+                <Button
+                  variant="contained"
+                  component="label"
+                  startIcon={<CloudUploadIcon />}
+                  fullWidth
+                >
+                  {selectedFile ? selectedFile.name : 'Select ISO File'}
+                  <input
+                    type="file"
+                    hidden
+                    accept=".iso"
+                    onChange={handleFileSelect}
+                  />
+                </Button>
+                {selectedFile && (
+                  <IconButton onClick={() => setSelectedFile(null)} color="error">
+                    <DeleteIcon />
+                  </IconButton>
+                )}
+              </Box>
               <TextField
                 label="Filename"
                 value={formData.filename}
@@ -452,7 +589,11 @@ export const ISOsPage: React.FC = () => {
                 select
                 label="Cluster"
                 value={formData.cluster_id}
-                onChange={(e) => setFormData({ ...formData, cluster_id: e.target.value })}
+                onChange={(e) => {
+                  const clusterId = e.target.value;
+                  setFormData({ ...formData, cluster_id: clusterId, node: '', storage: '' });
+                  fetchClusterNodes(clusterId);
+                }}
                 fullWidth
                 helperText="Proxmox cluster where ISO is stored"
               >
@@ -466,19 +607,47 @@ export const ISOsPage: React.FC = () => {
                 ))}
               </TextField>
               <TextField
+                select
                 label="Storage"
                 value={formData.storage}
                 onChange={(e) => setFormData({ ...formData, storage: e.target.value })}
                 fullWidth
-                helperText="Proxmox storage location (e.g., local)"
-              />
+                helperText="Proxmox storage location"
+                disabled={!formData.node || storages.length === 0}
+              >
+                <MenuItem value="">
+                  <em>Select a storage</em>
+                </MenuItem>
+                {storages.map((storage) => (
+                  <MenuItem key={storage} value={storage}>
+                    {storage}
+                  </MenuItem>
+                ))}
+              </TextField>
               <TextField
+                select
                 label="Node"
                 value={formData.node}
-                onChange={(e) => setFormData({ ...formData, node: e.target.value })}
+                onChange={(e) => {
+                  const nodeName = e.target.value;
+                  setFormData({ ...formData, node: nodeName, storage: '' });
+                  if (formData.cluster_id) {
+                    fetchNodeStorages(formData.cluster_id, nodeName);
+                  }
+                }}
                 fullWidth
-                helperText="Proxmox node name (e.g., pve1)"
-              />
+                helperText="Proxmox node name"
+                disabled={!formData.cluster_id || nodes.length === 0}
+              >
+                <MenuItem value="">
+                  <em>Select a node</em>
+                </MenuItem>
+                {nodes.map((node) => (
+                  <MenuItem key={node} value={node}>
+                    {node}
+                  </MenuItem>
+                ))}
+              </TextField>
               <TextField
                 label="Description"
                 value={formData.description}
@@ -501,7 +670,20 @@ export const ISOsPage: React.FC = () => {
               )}
             </Box>
           </DialogContent>
-          <DialogActions>
+                  {/* Upload Progress */}
+        {isUploading && (
+          <Box sx={{ width: '100%', mb: 2, px: 3 }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Uploading: {uploadProgress}%
+            </Typography>
+            <LinearProgress variant="determinate" value={uploadProgress} sx={{ height: 8, borderRadius: 4 }} />
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              {selectedFile?.name} ({(selectedFile?.size || 0 / (1024 * 1024)).toFixed(2)} MB)
+            </Typography>
+          </Box>
+        )}
+
+        <DialogActions>
             <Button onClick={handleCloseDialog} disabled={loading}>
               Cancel
             </Button>
@@ -510,7 +692,7 @@ export const ISOsPage: React.FC = () => {
               variant="contained"
               disabled={loading || !formData.name || !formData.filename}
             >
-              {editingISO ? 'Update' : 'Create'}
+              {isUploading ? 'Uploading...' : (editingISO ? 'Update' : 'Create')}
             </Button>
           </DialogActions>
         </Dialog>
@@ -588,7 +770,7 @@ export const ISOsPage: React.FC = () => {
                   </Box>
 
                   <List>
-                    {syncJob.results.map((result, index) => (
+                    {syncJob.results?.map((result, index) => (
                       <ListItem key={index}>
                         <ListItemIcon>
                           {getSyncStatusIcon(result.status)}
@@ -610,7 +792,20 @@ export const ISOsPage: React.FC = () => {
               )}
             </Box>
           </DialogContent>
-          <DialogActions>
+                  {/* Upload Progress */}
+        {isUploading && (
+          <Box sx={{ width: '100%', mb: 2, px: 3 }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Uploading: {uploadProgress}%
+            </Typography>
+            <LinearProgress variant="determinate" value={uploadProgress} sx={{ height: 8, borderRadius: 4 }} />
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              {selectedFile?.name} ({(selectedFile?.size || 0 / (1024 * 1024)).toFixed(2)} MB)
+            </Typography>
+          </Box>
+        )}
+
+        <DialogActions>
             <Button onClick={handleCloseSyncDialog} disabled={loading}>
               {syncJob?.status === 'in_progress' ? 'Close' : 'Cancel'}
             </Button>

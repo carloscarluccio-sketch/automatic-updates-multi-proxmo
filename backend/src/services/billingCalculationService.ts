@@ -1,0 +1,549 @@
+/**
+ * Billing Calculation Service
+ * Handles VM usage tracking, cost calculation, and invoice generation
+ * for the hybrid billing model
+ */
+
+import prisma from '../config/database';
+import logger from '../utils/logger';
+
+interface VMCostBreakdown {
+  vm_id: number;
+  vm_name: string;
+  vmid: number;
+  base_price: number;
+  cpu_cores: number;
+  cpu_overage: number;
+  cpu_overage_cost: number;
+  memory_gb: number;
+  memory_overage_gb: number;
+  memory_overage_cost: number;
+  storage_gb: number;
+  storage_overage_gb: number;
+  storage_overage_cost: number;
+  total_cost: number;
+}
+
+interface BillingSummary {
+  company_id: number;
+  company_name: string;
+  billing_period_start: Date;
+  billing_period_end: Date;
+  vm_count: number;
+  pricing_plan_name: string;
+  total_base_cost: number;
+  total_overage_cost: number;
+  subtotal: number;
+  tax_rate: number;
+  tax_amount: number;
+  total_amount: number;
+  vm_breakdown: VMCostBreakdown[];
+}
+
+/**
+ * Create daily VM snapshots for all active VMs
+ * Should run daily at 00:00 UTC via cron
+ */
+export async function createDailyVMSnapshots(): Promise<void> {
+  try {
+    const snapshotDate = new Date();
+    snapshotDate.setHours(0, 0, 0, 0); // Start of day
+
+    logger.info(`Creating VM billing snapshots for ${snapshotDate.toISOString()}`);
+
+    // Get all active VMs
+    const vms = await prisma.virtual_machines.findMany({
+      where: {
+        status: {
+          not: 'deleted'
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        vmid: true,
+        company_id: true,
+        cluster_id: true,
+        cpu_cores: true,
+        memory_mb: true,
+        storage_gb: true,
+        status: true,
+      }
+    });
+
+    logger.info(`Found ${vms.length} VMs to snapshot`);
+
+    let successCount = 0;
+    let skipCount = 0;
+    let errorCount = 0;
+
+    for (const vm of vms) {
+      try {
+        // Check if snapshot already exists for today
+        const existing = await prisma.vm_billing_snapshots.findFirst({
+          where: {
+            vm_id: vm.id,
+            snapshot_date: snapshotDate
+          }
+        });
+
+        if (existing) {
+          skipCount++;
+          continue;
+        }
+
+        // Get uptime from recent metrics (last 24 hours)
+        const yesterday = new Date(snapshotDate);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        const metrics = await prisma.vm_resource_metrics.findMany({
+          where: {
+            vm_id: vm.id,
+            collected_at: {
+              gte: yesterday,
+              lt: snapshotDate
+            }
+          },
+          select: {
+            uptime_seconds: true
+          }
+        });
+
+        // Calculate average uptime hours
+        let uptimeHours = 0;
+        if (metrics.length > 0) {
+          const avgUptimeSeconds = metrics.reduce((sum, m) => sum + (Number(m.uptime_seconds) || 0), 0) / metrics.length;
+          uptimeHours = avgUptimeSeconds / 3600;
+        }
+
+        // Create snapshot
+        await prisma.vm_billing_snapshots.create({
+          data: {
+            company_id: vm.company_id,
+            vm_id: vm.id,
+            vm_name: vm.name,
+            vmid: vm.vmid,
+            cluster_id: vm.cluster_id,
+            snapshot_date: snapshotDate,
+            cpu_cores: vm.cpu_cores ?? 0,
+            memory_mb: vm.memory_mb ?? 0,
+            storage_gb: vm.storage_gb ?? 0,
+            uptime_hours: uptimeHours,
+            status: vm.status || 'unknown'
+          }
+        });
+
+        successCount++;
+      } catch (error) {
+        logger.error(`Error creating snapshot for VM ${vm.id}:`, error);
+        errorCount++;
+      }
+    }
+
+    logger.info(`VM snapshots created: ${successCount} success, ${skipCount} skipped, ${errorCount} errors`);
+  } catch (error) {
+    logger.error('Error in createDailyVMSnapshots:', error);
+    throw error;
+  }
+}
+
+/**
+ * Calculate VM cost for a specific month
+ */
+export async function getVMCost(
+  vmId: number,
+  pricingPlanId: number,
+  __month: Date
+): Promise<VMCostBreakdown | null> {
+  try {
+    // Get VM details
+    const vm = await prisma.virtual_machines.findUnique({
+      where: { id: vmId },
+      select: {
+        id: true,
+        name: true,
+        vmid: true,
+        cpu_cores: true,
+        memory_mb: true,
+        storage_gb: true
+      }
+    });
+
+    if (!vm) return null;
+
+    // Get pricing plan
+    const plan = await prisma.pricing_plans.findUnique({
+      where: { id: pricingPlanId }
+    });
+
+    if (!plan) return null;
+
+    // Calculate overages
+    const memoryGb = Math.round(((vm.memory_mb ?? 0) / 1024) * 100) / 100;
+
+    const cpuOverage = Math.max(0, (vm.cpu_cores ?? 0) - (plan.included_cpu_cores ?? 0));
+    const memoryOverage = Math.max(0, memoryGb - (plan.included_memory_gb ?? 0));
+    const storageOverage = Math.max(0, (vm.storage_gb ?? 0) - (plan.included_storage_gb ?? 0));
+
+    const cpuOverageCost = cpuOverage * Number(plan.overage_cpu_core_price);
+    const memoryOverageCost = memoryOverage * Number(plan.overage_memory_gb_price);
+    const storageOverageCost = storageOverage * Number(plan.overage_storage_gb_price);
+
+    const totalCost = Number(plan.base_price) + cpuOverageCost + memoryOverageCost + storageOverageCost;
+
+    return {
+      vm_id: vm.id,
+      vm_name: vm.name,
+      vmid: vm.vmid,
+      base_price: Number(plan.base_price),
+      cpu_cores: vm.cpu_cores ?? 0,
+      cpu_overage: cpuOverage,
+      cpu_overage_cost: cpuOverageCost,
+      memory_gb: memoryGb,
+      memory_overage_gb: memoryOverage,
+      memory_overage_cost: memoryOverageCost,
+      storage_gb: vm.storage_gb ?? 0,
+      storage_overage_gb: storageOverage,
+      storage_overage_cost: storageOverageCost,
+      total_cost: totalCost
+    };
+  } catch (error) {
+    logger.error(`Error calculating VM cost for VM ${vmId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Calculate monthly bill for a company
+ */
+export async function calculateMonthlyBill(
+  companyId: number,
+  billingMonth: Date
+): Promise<BillingSummary | null> {
+  try {
+    // Get company details
+    const company = await prisma.companies.findUnique({
+      where: { id: companyId },
+      select: {
+        id: true,
+        name: true,
+        billing_active: true
+      }
+    });
+
+    if (!company || !company.billing_active) {
+      logger.warn(`Company ${companyId} not found or billing not active`);
+      return null;
+    }
+
+    // Get company billing info
+    const billing = await prisma.company_billing.findUnique({
+      where: { company_id: companyId }
+    });
+
+    if (!billing || !billing.current_pricing_plan_id) {
+      logger.warn(`Company ${companyId} has no pricing plan assigned`);
+      return null;
+    }
+
+    // Get pricing plan
+    const plan = await prisma.pricing_plans.findUnique({
+      where: { id: billing.current_pricing_plan_id }
+    });
+
+    if (!plan) {
+      logger.warn(`Pricing plan ${billing.current_pricing_plan_id} not found`);
+      return null;
+    }
+
+    // Calculate billing period
+    const periodStart = new Date(billingMonth);
+    periodStart.setDate(1);
+    periodStart.setHours(0, 0, 0, 0);
+
+    const periodEnd = new Date(periodStart);
+    periodEnd.setMonth(periodEnd.getMonth() + 1);
+    periodEnd.setDate(0); // Last day of month
+    periodEnd.setHours(23, 59, 59, 999);
+
+    // Get all VMs for company
+    const vms = await prisma.virtual_machines.findMany({
+      where: {
+        company_id: companyId,
+        status: {
+          not: 'deleted'
+        }
+      }
+    });
+
+    logger.info(`Calculating bill for company ${companyId}, ${vms.length} VMs`);
+
+    // Calculate cost for each VM
+    const vmBreakdown: VMCostBreakdown[] = [];
+    let totalBaseCost = 0;
+    let totalOverageCost = 0;
+
+    for (const vm of vms) {
+      const cost = await getVMCost(vm.id, plan.id, billingMonth);
+      if (cost) {
+        vmBreakdown.push(cost);
+        totalBaseCost += cost.base_price;
+        totalOverageCost += (cost.cpu_overage_cost + cost.memory_overage_cost + cost.storage_overage_cost);
+      }
+    }
+
+    const subtotal = totalBaseCost + totalOverageCost;
+    const taxRate = Number(billing.tax_rate || 0);
+    const taxAmount = (subtotal * taxRate) / 100;
+    const totalAmount = subtotal + taxAmount;
+
+    return {
+      company_id: companyId,
+      company_name: company.name,
+      billing_period_start: periodStart,
+      billing_period_end: periodEnd,
+      vm_count: vms.length,
+      pricing_plan_name: plan.name,
+      total_base_cost: totalBaseCost,
+      total_overage_cost: totalOverageCost,
+      subtotal,
+      tax_rate: taxRate,
+      tax_amount: taxAmount,
+      total_amount: totalAmount,
+      vm_breakdown: vmBreakdown
+    };
+  } catch (error) {
+    logger.error(`Error calculating monthly bill for company ${companyId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Generate invoice line items from billing summary
+ */
+export async function generateInvoiceItems(
+  invoiceId: number,
+  billingSummary: BillingSummary
+): Promise<void> {
+  try {
+    const items = [];
+
+    // Create line items for each VM
+    for (const vm of billingSummary.vm_breakdown) {
+      // Base price line item
+      items.push({
+        invoice_id: invoiceId,
+        vm_id: vm.vm_id,
+        vm_name: vm.vm_name,
+        description: `${vm.vm_name} (VMID ${vm.vmid}) - Base ${billingSummary.pricing_plan_name} Plan`,
+        item_type: 'vm_base' as const,
+        quantity: 1,
+        unit_price: vm.base_price,
+        line_total: vm.base_price,
+        included_qty: 1,
+        overage_qty: 0
+      });
+
+      // CPU overage line item
+      if (vm.cpu_overage > 0) {
+        items.push({
+          invoice_id: invoiceId,
+          vm_id: vm.vm_id,
+          vm_name: vm.vm_name,
+          description: `${vm.vm_name} - CPU Overage (${vm.cpu_overage} cpu_cores)`,
+          item_type: 'cpu_core' as const,
+          quantity: vm.cpu_overage,
+          unit_price: vm.cpu_overage_cost / vm.cpu_overage,
+          line_total: vm.cpu_overage_cost,
+          included_qty: 0,
+          overage_qty: vm.cpu_overage
+        });
+      }
+
+      // Memory overage line item
+      if (vm.memory_overage_gb > 0) {
+        items.push({
+          invoice_id: invoiceId,
+          vm_id: vm.vm_id,
+          vm_name: vm.vm_name,
+          description: `${vm.vm_name} - Memory Overage (${vm.memory_overage_gb.toFixed(2)} GB)`,
+          item_type: 'memory_gb' as const,
+          quantity: vm.memory_overage_gb,
+          unit_price: vm.memory_overage_cost / vm.memory_overage_gb,
+          line_total: vm.memory_overage_cost,
+          included_qty: 0,
+          overage_qty: vm.memory_overage_gb
+        });
+      }
+
+      // Storage overage line item
+      if (vm.storage_overage_gb > 0) {
+        items.push({
+          invoice_id: invoiceId,
+          vm_id: vm.vm_id,
+          vm_name: vm.vm_name,
+          description: `${vm.vm_name} - Storage Overage (${vm.storage_overage_gb} GB)`,
+          item_type: 'storage_gb' as const,
+          quantity: vm.storage_overage_gb,
+          unit_price: vm.storage_overage_cost / vm.storage_overage_gb,
+          line_total: vm.storage_overage_cost,
+          included_qty: 0,
+          overage_qty: vm.storage_overage_gb
+        });
+      }
+    }
+
+    // Insert all line items
+    if (items.length > 0) {
+      await prisma.invoice_line_items.createMany({
+        data: items as any
+      });
+      logger.info(`Created ${items.length} invoice line items for invoice ${invoiceId}`);
+    }
+  } catch (error) {
+    logger.error(`Error generating invoice items for invoice ${invoiceId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Generate invoice for a company
+ */
+export async function generateInvoice(
+  companyId: number,
+  billingMonth: Date,
+  userId?: number
+): Promise<number | null> {
+  try {
+    // Calculate bill
+    const billingSummary = await calculateMonthlyBill(companyId, billingMonth);
+    if (!billingSummary) {
+      logger.warn(`Could not calculate bill for company ${companyId}`);
+      return null;
+    }
+
+    // Get company billing info for invoice number
+    const billing = await prisma.company_billing.findUnique({
+      where: { company_id: companyId }
+    });
+
+    if (!billing) return null;
+
+    // Generate invoice number
+    const invoicePrefix = billing.invoice_prefix || 'INV';
+    const invoiceCounter = billing.invoice_counter || 1;
+    const invoiceNumber = `${invoicePrefix}-${new Date().getFullYear()}-${String(invoiceCounter).padStart(6, '0')}`;
+
+    // Calculate due date
+    const dueDate = new Date(billingSummary.billing_period_end);
+    dueDate.setDate(dueDate.getDate() + (billing.payment_terms_days || 30));
+
+    // Create invoice
+    const invoice = await prisma.invoices.create({
+      data: {
+        invoice_number: invoiceNumber,
+        company_id: companyId,
+        billing_period_start: billingSummary.billing_period_start,
+        billing_period_end: billingSummary.billing_period_end,
+        subtotal: billingSummary.subtotal,
+        tax_amount: billingSummary.tax_amount,
+        total_amount: billingSummary.total_amount,
+        status: 'draft',
+        due_date: dueDate,
+        created_by: userId || null,
+        usage_period_start: billingSummary.billing_period_start,
+        usage_period_end: billingSummary.billing_period_end,
+        auto_generated: true
+      }
+    });
+
+    // Update invoice counter
+    await prisma.company_billing.update({
+      where: { company_id: companyId },
+      data: {
+        invoice_counter: invoiceCounter + 1,
+        last_invoice_date: billingSummary.billing_period_end
+      }
+    });
+
+    // Generate line items
+    await generateInvoiceItems(invoice.id, billingSummary);
+
+    // Log to billing audit
+    await prisma.billing_audit_log.create({
+      data: {
+        company_id: companyId,
+        invoice_id: invoice.id,
+        action: 'invoice_created',
+        description: `Invoice ${invoiceNumber} created for ${billingSummary.billing_period_start.toLocaleDateString()} - ${billingSummary.billing_period_end.toLocaleDateString()}`,
+        new_values: JSON.stringify(billingSummary) as any,
+        performed_by: userId || null
+      }
+    });
+
+    logger.info(`Invoice ${invoiceNumber} (ID: ${invoice.id}) created for company ${companyId}`);
+
+    return invoice.id;
+  } catch (error) {
+    logger.error(`Error generating invoice for company ${companyId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Generate invoices for all companies with active billing
+ * Should run monthly on each company's billing_day_of_month
+ */
+export async function generateMonthlyInvoices(): Promise<void> {
+  try {
+    const today = new Date();
+    const currentDay = today.getDate();
+
+    logger.info(`Running monthly invoice generation for day ${currentDay}`);
+
+    // Get companies due for billing today
+    const companies = await prisma.companies.findMany({
+      where: {
+        billing_active: true,
+        billing_day_of_month: currentDay,
+        status: 'active'
+      },
+      select: {
+        id: true,
+        name: true
+      }
+    });
+
+    logger.info(`Found ${companies.length} companies due for billing`);
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const company of companies) {
+      try {
+        const invoiceId = await generateInvoice(company.id, today);
+        if (invoiceId) {
+          successCount++;
+          logger.info(`Generated invoice ${invoiceId} for ${company.name}`);
+        }
+      } catch (error) {
+        errorCount++;
+        logger.error(`Error generating invoice for company ${company.id}:`, error);
+      }
+    }
+
+    logger.info(`Monthly invoice generation complete: ${successCount} success, ${errorCount} errors`);
+  } catch (error) {
+    logger.error('Error in generateMonthlyInvoices:', error);
+    throw error;
+  }
+}
+
+export default {
+  createDailyVMSnapshots,
+  getVMCost,
+  calculateMonthlyBill,
+  generateInvoiceItems,
+  generateInvoice,
+  generateMonthlyInvoices
+};

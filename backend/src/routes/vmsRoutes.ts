@@ -13,11 +13,19 @@ import {
   purgeGhostVMs,
   assignVMToProject
 } from '../controllers/vmsController';
+import {
+  updateAutoShutdown,
+  getAutoShutdownStats,
+  listAutoShutdownVMs
+} from '../controllers/vmAutoShutdownController';
 import { authenticate } from '../middlewares/auth';
+import { trackVMActivity } from '../middlewares/vmActivityMiddleware';
+import { bulkVMAction, bulkVMUpdate } from '../controllers/bulkVMController';
 
 const router = express.Router();
 
 router.use(authenticate);
+// Bulk operationsrouter.post('/bulk-action', bulkVMAction);router.patch('/bulk-update', bulkVMUpdate);
 
 // List all VMs
 router.get('/', getVMs);
@@ -25,34 +33,39 @@ router.get('/', getVMs);
 // Sync VMs with Proxmox (check existence)
 router.post('/sync', syncVMs);
 
-// Purge ghost VMs (mark as deleted if not in Proxmox)
-router.post('/purge', purgeGhostVMs);
+// Purge ghost VMs (VMs in DB but not in Proxmox)
+router.post('/purge-ghosts', purgeGhostVMs);
 
-// Get single VM
-router.get('/:id', getVM);
+// Get single VM (with activity tracking)
+router.get('/:id', trackVMActivity, getVM);
 
-// Get VM status from Proxmox
-router.get('/:id/status', getVMStatus);
+// Get VM status (with activity tracking)
+router.get('/:id/status', trackVMActivity, getVMStatus);
 
-// Get console URL for VM
-router.get('/:id/console', getVMConsole);
+// Get VM console URL (with activity tracking)
+router.get('/:id/console', trackVMActivity, getVMConsole);
 
-// Create new VM
+// Create VM
 router.post('/', createVM);
 
-// Clone VM
-router.post('/:id/clone', cloneVM);
+// Clone VM (with activity tracking for source VM)
+router.post('/:id/clone', trackVMActivity, cloneVM);
 
-// Control VM (start/stop/restart)
-router.post('/:id/control', controlVM);
+// Control VM - start/stop/restart (with activity tracking)
+router.post('/:id/control', trackVMActivity, controlVM);
 
-// Assign VM to project (or unassign if project_id is null)
-router.post('/:id/assign-project', assignVMToProject);
+// Assign VM to project (with activity tracking)
+router.post('/:id/assign-project', trackVMActivity, assignVMToProject);
 
-// Update VM
-router.put('/:id', updateVM);
+// Auto-shutdown routes
+router.get('/auto-shutdown/stats', getAutoShutdownStats);
+router.get('/auto-shutdown/list', listAutoShutdownVMs);
+router.patch('/:id/auto-shutdown', updateAutoShutdown);
 
-// Delete VM
+// Update VM (with activity tracking)
+router.put('/:id', trackVMActivity, updateVM);
+
+// Delete VM (activity tracking not needed for deletion)
 router.delete('/:id', deleteVM);
 
 export default router;

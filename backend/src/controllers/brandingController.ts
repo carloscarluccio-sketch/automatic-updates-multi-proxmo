@@ -2,9 +2,12 @@ import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth';
 import prisma from '../config/database';
 import logger from '../utils/logger';
+import brandingService from '../services/BrandingService';
+import emailTemplateService from '../services/EmailTemplateService';
+import templateVariableService from '../services/TemplateVariableService';
 
 /**
- * Get company branding settings
+ * Get company branding settings (enhanced with BrandingService)
  */
 export const getBranding = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -30,16 +33,25 @@ export const getBranding = async (req: AuthRequest, res: Response): Promise<void
       targetCompanyId = company_id;
     }
 
+    // Get raw company branding data (not resolved context)
+    // This is for the branding management UI which expects raw database fields
     const company = await prisma.companies.findUnique({
       where: { id: targetCompanyId },
       select: {
         id: true,
         name: true,
         logo_filename: true,
+        favicon_filename: true,
         panel_name: true,
         header_color: true,
         menu_color: true,
         login_bg_color: true,
+        primary_color: true,
+        secondary_color: true,
+        background_color: true,
+        text_color: true,
+        font_family: true,
+        sidebar_text_color: true
       }
     });
 
@@ -56,6 +68,110 @@ export const getBranding = async (req: AuthRequest, res: Response): Promise<void
 };
 
 /**
+ * Get public branding for domain (for widget - NO AUTH)
+ */
+export const getPublicBranding = async (req: any, res: Response): Promise<void> => {
+  try {
+    const { domain } = req.params;
+
+    if (!domain) {
+      res.status(400).json({ success: false, message: 'Domain is required' });
+      return;
+    }
+
+    const branding = await brandingService.getPublicBranding(domain);
+
+    res.json({ success: true, data: branding });
+  } catch (error) {
+    logger.error('Get public branding error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch branding' });
+  }
+};
+
+/**
+ * Get global branding settings (super_admin only)
+ */
+export const getGlobalBranding = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { role } = req.user!;
+
+    if (role !== 'super_admin') {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+
+    const branding = await brandingService.getGlobalBranding();
+
+    res.json({ success: true, data: branding });
+  } catch (error) {
+    logger.error('Get global branding error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch global branding' });
+  }
+};
+
+/**
+ * Update global branding settings (super_admin only)
+ */
+export const updateGlobalBranding = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { role } = req.user!;
+
+    if (role !== 'super_admin') {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+
+    const settings = req.body;
+
+    // Update each setting in global_settings table
+    for (const [key, value] of Object.entries(settings)) {
+      // Determine setting type and value field
+      let settingType = 'string';
+      let valueField: any = { setting_value_text: value };
+
+      if (typeof value === 'number') {
+        settingType = Number.isInteger(value) ? 'integer' : 'float';
+        valueField = Number.isInteger(value)
+          ? { setting_value_int: value }
+          : { setting_value_float: value };
+      } else if (typeof value === 'boolean') {
+        settingType = 'boolean';
+        valueField = { setting_value_bool: value };
+      } else if (typeof value === 'object') {
+        settingType = 'json';
+        valueField = { setting_value_json: value };
+      }
+
+      await prisma.global_settings.upsert({
+        where: { setting_key: key },
+        update: {
+          ...valueField,
+          setting_type: settingType,
+          updated_at: new Date()
+        },
+        create: {
+          setting_key: key,
+          setting_category: 'branding',
+          setting_type: settingType,
+          ...valueField
+        }
+      });
+    }
+
+    const updatedBranding = await brandingService.getGlobalBranding();
+
+    res.json({
+      success: true,
+      data: updatedBranding,
+      message: 'Global branding updated successfully'
+    });
+  } catch (error) {
+    logger.error('Update global branding error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update global branding' });
+  }
+};
+
+/**
  * Update company branding settings
  */
 export const updateBranding = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -63,7 +179,7 @@ export const updateBranding = async (req: AuthRequest, res: Response): Promise<v
     const { role, company_id } = req.user!;
     const { companyId } = req.params;
     const {
-      logo_filename,
+      logo_filename, favicon_filename,
       panel_name,
       header_color,
       menu_color,
@@ -103,6 +219,7 @@ export const updateBranding = async (req: AuthRequest, res: Response): Promise<v
     const updateData: any = {};
 
     if (logo_filename !== undefined) updateData.logo_filename = logo_filename;
+    if (favicon_filename !== undefined) updateData.favicon_filename = favicon_filename;
     if (panel_name !== undefined) updateData.panel_name = panel_name;
     if (header_color !== undefined) updateData.header_color = header_color;
     if (menu_color !== undefined) updateData.menu_color = menu_color;
@@ -115,6 +232,7 @@ export const updateBranding = async (req: AuthRequest, res: Response): Promise<v
         id: true,
         name: true,
         logo_filename: true,
+        favicon_filename: true,
         panel_name: true,
         header_color: true,
         menu_color: true,
@@ -319,14 +437,17 @@ export const updateURLMapping = async (req: AuthRequest, res: Response): Promise
     // Build update data
     const updateData: any = {};
     const allowedFields = [
-      'url_pattern',
-      'is_active',
-      'ssl_enabled',
-      'ssl_certificate',
-      'ssl_private_key',
-      'ssl_chain',
-      'use_letsencrypt',
-      'letsencrypt_email'
+      'url_pattern', 'is_active', 'ssl_enabled', 'ssl_certificate', 'ssl_private_key',
+      'ssl_chain', 'use_letsencrypt', 'letsencrypt_email',
+      // White-label fields
+      'branding_name', 'logo_url', 'favicon_url', 'primary_color', 'secondary_color',
+      'accent_color', 'font_family', 'custom_css', 'custom_header_html', 'custom_footer_html',
+      'meta_title', 'meta_description', 'meta_keywords', 'og_image_url',
+      'terms_url', 'privacy_url', 'support_email', 'support_phone',
+      'language', 'timezone', 'currency',
+      'ga_tracking_id', 'gtm_container_id', 'fb_pixel_id', 'custom_scripts',
+      'login_background_url', 'login_logo_url', 'welcome_message',
+      'hide_powered_by', 'white_label_level', 'branding_settings'
     ];
 
     allowedFields.forEach(field => {
@@ -385,5 +506,670 @@ export const deleteURLMapping = async (req: AuthRequest, res: Response): Promise
   } catch (error) {
     logger.error('Delete URL mapping error:', error);
     res.status(500).json({ success: false, message: 'Failed to delete URL mapping' });
+  }
+};
+
+// ========== EMAIL TEMPLATE ENDPOINTS ==========
+
+/**
+ * List email templates
+ */
+export const listEmailTemplates = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { role, company_id } = req.user!;
+    const { companyId, urlMappingId, templateType } = req.query;
+
+    const filters: any = {};
+
+    if (companyId) {
+      filters.companyId = Number(companyId);
+
+      // Non-admin can only see their own company's templates
+      if (role !== 'super_admin' && filters.companyId !== company_id) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
+      }
+    } else if (role !== 'super_admin') {
+      // Non-admin users can only see their company's templates
+      filters.companyId = company_id;
+    }
+
+    if (urlMappingId) {
+      filters.urlMappingId = Number(urlMappingId);
+    }
+
+    if (templateType) {
+      filters.templateType = templateType as string;
+    }
+
+    const templates = await emailTemplateService.listTemplates(filters);
+
+    res.json({ success: true, data: templates });
+  } catch (error) {
+    logger.error('List email templates error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch templates' });
+  }
+};
+
+/**
+ * Get single email template
+ */
+export const getEmailTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { role, company_id } = req.user!;
+
+    const template = await prisma.email_templates.findUnique({
+      where: { id: Number(id) }
+    });
+
+    if (!template) {
+      res.status(404).json({ success: false, message: 'Template not found' });
+      return;
+    }
+
+    // Check permissions
+    if (role !== 'super_admin' && template.company_id !== company_id) {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+
+    res.json({ success: true, data: template });
+  } catch (error) {
+    logger.error('Get email template error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch template' });
+  }
+};
+
+/**
+ * Create email template
+ */
+export const createEmailTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { role, company_id } = req.user!;
+
+    if (role !== 'super_admin' && role !== 'company_admin') {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+
+    const {
+      company_id: reqCompanyId,
+      url_mapping_id,
+      template_type,
+      template_slug,
+      subject,
+      html_body,
+      text_body,
+      available_variables,
+      parent_template_id
+    } = req.body;
+
+    // Non-admin can only create templates for their company
+    if (role === 'company_admin' && reqCompanyId && reqCompanyId !== company_id) {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+
+    const template = await emailTemplateService.createTemplate({
+      companyId: reqCompanyId,
+      urlMappingId: url_mapping_id,
+      templateType: template_type,
+      templateSlug: template_slug,
+      subject,
+      htmlBody: html_body,
+      textBody: text_body,
+      availableVariables: available_variables,
+      parentTemplateId: parent_template_id
+    });
+
+    res.status(201).json({ success: true, data: template });
+  } catch (error) {
+    logger.error('Create email template error:', error);
+    res.status(500).json({ success: false, message: 'Failed to create template' });
+  }
+};
+
+/**
+ * Update email template
+ */
+export const updateEmailTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { role, company_id } = req.user!;
+
+    const existingTemplate = await prisma.email_templates.findUnique({
+      where: { id: Number(id) }
+    });
+
+    if (!existingTemplate) {
+      res.status(404).json({ success: false, message: 'Template not found' });
+      return;
+    }
+
+    // Check permissions
+    if (role !== 'super_admin' && existingTemplate.company_id !== company_id) {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+
+    const { subject, html_body, text_body, available_variables, is_active } = req.body;
+
+    const template = await emailTemplateService.updateTemplate(Number(id), {
+      subject,
+      htmlBody: html_body,
+      textBody: text_body,
+      availableVariables: available_variables,
+      isActive: is_active
+    });
+
+    res.json({ success: true, data: template });
+  } catch (error) {
+    logger.error('Update email template error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update template' });
+  }
+};
+
+/**
+ * Delete email template
+ */
+export const deleteEmailTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { role, company_id } = req.user!;
+
+    const existingTemplate = await prisma.email_templates.findUnique({
+      where: { id: Number(id) }
+    });
+
+    if (!existingTemplate) {
+      res.status(404).json({ success: false, message: 'Template not found' });
+      return;
+    }
+
+    // Check permissions
+    if (role !== 'super_admin' && existingTemplate.company_id !== company_id) {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+
+    await emailTemplateService.deleteTemplate(Number(id));
+
+    res.json({ success: true, message: 'Template deleted successfully' });
+  } catch (error) {
+    logger.error('Delete email template error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete template' });
+  }
+};
+
+/**
+ * Preview email template
+ */
+export const previewEmailTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { role, company_id } = req.user!;
+    const { sample_variables } = req.body;
+
+    const template = await prisma.email_templates.findUnique({
+      where: { id: Number(id) }
+    });
+
+    if (!template) {
+      res.status(404).json({ success: false, message: 'Template not found' });
+      return;
+    }
+
+    // Check permissions
+    if (role !== 'super_admin' && template.company_id !== company_id) {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+
+    const preview = await emailTemplateService.previewTemplate(
+      Number(id),
+      sample_variables || templateVariableService.getSampleVariables(template.template_type)
+    );
+
+    res.json({ success: true, data: preview });
+  } catch (error) {
+    logger.error('Preview email template error:', error);
+    res.status(500).json({ success: false, message: 'Failed to preview template' });
+  }
+};
+
+/**
+ * Get available variables for template type
+ */
+export const getTemplateVariables = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { templateType } = req.params;
+
+    const variables = templateVariableService.getAvailableVariables(templateType);
+
+    res.json({ success: true, data: variables });
+  } catch (error) {
+    logger.error('Get template variables error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch variables' });
+  }
+};
+
+/**
+ * Upload logo for company branding
+ */
+export const uploadCompanyLogo = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { role, company_id } = req.user!;
+    const { companyId } = req.params;
+
+    let targetCompanyId: number;
+
+    if (companyId) {
+      targetCompanyId = Number(companyId);
+      if (role !== 'super_admin' && targetCompanyId !== company_id) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
+      }
+    } else {
+      if (company_id === null) {
+        res.status(400).json({ success: false, message: 'No company associated with user' });
+        return;
+      }
+      targetCompanyId = company_id;
+    }
+
+    if (!req.file) {
+      res.status(400).json({ success: false, message: 'No file uploaded' });
+      return;
+    }
+
+    const company = await prisma.companies.findUnique({
+      where: { id: targetCompanyId }
+    });
+
+    if (!company) {
+      res.status(404).json({ success: false, message: 'Company not found' });
+      return;
+    }
+
+    const path = await import('path');
+    const fs = await import('fs');
+
+    if (company.logo_filename) {
+      const oldLogoPath = path.join(__dirname, '../../uploads/logos', company.logo_filename);
+      if (fs.existsSync(oldLogoPath)) {
+        fs.unlinkSync(oldLogoPath);
+      }
+    }
+
+    const updated = await prisma.companies.update({
+      where: { id: targetCompanyId },
+      data: {
+        logo_filename: req.file.filename
+      },
+      select: {
+        id: true,
+        name: true,
+        logo_filename: true,
+        favicon_filename: true,
+        panel_name: true,
+        header_color: true,
+        menu_color: true,
+        login_bg_color: true,
+        primary_color: true,
+        secondary_color: true,
+        background_color: true,
+        text_color: true,
+        font_family: true,
+        sidebar_text_color: true
+      }
+    });
+
+    logger.info(`Logo uploaded for company ${targetCompanyId}: ${req.file.filename}`);
+
+    res.json({
+      success: true,
+      data: updated,
+      logoUrl: `/uploads/logos/${req.file.filename}`
+    });
+  } catch (error) {
+    logger.error('Upload company logo error:', error);
+    if (req.file) {
+      const path = await import('path');
+      const fs = await import('fs');
+      const uploadPath = path.join(__dirname, '../../uploads/logos', req.file.filename);
+      if (fs.existsSync(uploadPath)) {
+        fs.unlinkSync(uploadPath);
+      }
+    }
+    res.status(500).json({ success: false, message: 'Failed to upload logo' });
+  }
+};
+
+/**
+ * Delete company logo
+ */
+export const deleteCompanyLogo = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { role, company_id } = req.user!;
+    const { companyId } = req.params;
+
+    let targetCompanyId: number;
+
+    if (companyId) {
+      targetCompanyId = Number(companyId);
+      if (role !== 'super_admin' && targetCompanyId !== company_id) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
+      }
+    } else {
+      if (company_id === null) {
+        res.status(400).json({ success: false, message: 'No company associated with user' });
+        return;
+      }
+      targetCompanyId = company_id;
+    }
+
+    const company = await prisma.companies.findUnique({
+      where: { id: targetCompanyId }
+    });
+
+    if (!company) {
+      res.status(404).json({ success: false, message: 'Company not found' });
+      return;
+    }
+
+    const path = await import('path');
+    const fs = await import('fs');
+
+    if (company.logo_filename) {
+      const logoPath = path.join(__dirname, '../../uploads/logos', company.logo_filename);
+      if (fs.existsSync(logoPath)) {
+        fs.unlinkSync(logoPath);
+      }
+    }
+
+    const updated = await prisma.companies.update({
+      where: { id: targetCompanyId },
+      data: {
+        logo_filename: null
+      },
+      select: {
+        id: true,
+        name: true,
+        logo_filename: true,
+        favicon_filename: true,
+        panel_name: true,
+        header_color: true,
+        menu_color: true,
+        login_bg_color: true,
+        primary_color: true,
+        secondary_color: true,
+        background_color: true,
+        text_color: true,
+        font_family: true,
+        sidebar_text_color: true
+      }
+    });
+
+    logger.info(`Logo deleted for company ${targetCompanyId}`);
+
+    res.json({
+      success: true,
+      data: updated,
+      message: 'Logo deleted successfully'
+    });
+  } catch (error) {
+    logger.error('Delete company logo error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete logo' });
+  }
+};
+
+/**
+ * Upload logo for URL mapping (white-label)
+ */
+export const uploadURLMappingLogo = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { role, company_id } = req.user!;
+
+    let where: any = { id: Number(id) };
+    if (role !== 'super_admin' && company_id !== null) {
+      where.company_id = company_id;
+    }
+
+    const mapping = await prisma.company_url_mappings.findFirst({ where });
+
+    if (!mapping) {
+      res.status(404).json({ success: false, message: 'URL mapping not found or access denied' });
+      return;
+    }
+
+    if (!req.file) {
+      res.status(400).json({ success: false, message: 'No file uploaded' });
+      return;
+    }
+
+    const path = await import('path');
+    const fs = await import('fs');
+
+    if (mapping.logo_url) {
+      const oldFilename = path.basename(mapping.logo_url);
+      const oldLogoPath = path.join(__dirname, '../../uploads/logos', oldFilename);
+      if (fs.existsSync(oldLogoPath)) {
+        fs.unlinkSync(oldLogoPath);
+      }
+    }
+
+    const logoUrl = `/uploads/logos/${req.file.filename}`;
+
+    const updated = await prisma.company_url_mappings.update({
+      where: { id: Number(id) },
+      data: {
+        logo_url: logoUrl
+      },
+      include: {
+        companies: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    logger.info(`Logo uploaded for URL mapping ${id}: ${req.file.filename}`);
+
+    res.json({
+      success: true,
+      data: updated,
+      logoUrl: logoUrl
+    });
+  } catch (error) {
+    logger.error('Upload URL mapping logo error:', error);
+    if (req.file) {
+      const path = await import('path');
+      const fs = await import('fs');
+      const uploadPath = path.join(__dirname, '../../uploads/logos', req.file.filename);
+      if (fs.existsSync(uploadPath)) {
+        fs.unlinkSync(uploadPath);
+      }
+    }
+    res.status(500).json({ success: false, message: 'Failed to upload logo' });
+  }
+};
+
+/**
+ * Upload company favicon
+ * @route POST /api/companies/branding/:companyId?/favicon
+ */
+export const uploadCompanyFavicon = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { role, company_id } = req.user!;
+    const { companyId } = req.params;
+
+    let targetCompanyId: number;
+
+    if (companyId) {
+      targetCompanyId = Number(companyId);
+      if (role !== 'super_admin' && targetCompanyId !== company_id) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
+      }
+    } else {
+      if (company_id === null) {
+        res.status(400).json({ success: false, message: 'No company associated with user' });
+        return;
+      }
+      targetCompanyId = company_id;
+    }
+
+    if (!req.file) {
+      res.status(400).json({ success: false, message: 'No file uploaded' });
+      return;
+    }
+
+    const company = await prisma.companies.findUnique({
+      where: { id: targetCompanyId }
+    });
+
+    if (!company) {
+      res.status(404).json({ success: false, message: 'Company not found' });
+      return;
+    }
+
+    const path = await import('path');
+    const fs = await import('fs');
+
+    // Delete old favicon if exists
+    if (company.favicon_filename) {
+      const oldFaviconPath = path.join(__dirname, '../../uploads/favicons', company.favicon_filename);
+      if (fs.existsSync(oldFaviconPath)) {
+        fs.unlinkSync(oldFaviconPath);
+      }
+    }
+
+    const updated = await prisma.companies.update({
+      where: { id: targetCompanyId },
+      data: {
+        favicon_filename: req.file.filename
+      },
+      select: {
+        id: true,
+        name: true,
+        logo_filename: true,
+        favicon_filename: true,
+        panel_name: true,
+        header_color: true,
+        menu_color: true,
+        login_bg_color: true,
+        primary_color: true,
+        secondary_color: true,
+        background_color: true,
+        text_color: true,
+        font_family: true,
+        sidebar_text_color: true
+      }
+    });
+
+    logger.info(`Favicon uploaded for company ${targetCompanyId}: ${req.file.filename}`);
+
+    res.json({
+      success: true,
+      data: updated,
+      faviconUrl: `/uploads/favicons/${req.file.filename}`
+    });
+  } catch (error) {
+    logger.error('Upload company favicon error:', error);
+    if (req.file) {
+      const path = await import('path');
+      const fs = await import('fs');
+      const uploadPath = path.join(__dirname, '../../uploads/favicons', req.file.filename);
+      if (fs.existsSync(uploadPath)) {
+        fs.unlinkSync(uploadPath);
+      }
+    }
+    res.status(500).json({ success: false, message: 'Failed to upload favicon' });
+  }
+};
+
+/**
+ * Delete company favicon
+ * @route DELETE /api/companies/branding/:companyId?/favicon
+ */
+export const deleteCompanyFavicon = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { role, company_id } = req.user!;
+    const { companyId } = req.params;
+
+    let targetCompanyId: number;
+
+    if (companyId) {
+      targetCompanyId = Number(companyId);
+      if (role !== 'super_admin' && targetCompanyId !== company_id) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
+      }
+    } else {
+      if (company_id === null) {
+        res.status(400).json({ success: false, message: 'No company associated with user' });
+        return;
+      }
+      targetCompanyId = company_id;
+    }
+
+    const company = await prisma.companies.findUnique({
+      where: { id: targetCompanyId }
+    });
+
+    if (!company) {
+      res.status(404).json({ success: false, message: 'Company not found' });
+      return;
+    }
+
+    const path = await import('path');
+    const fs = await import('fs');
+
+    // Delete favicon file if exists
+    if (company.favicon_filename) {
+      const faviconPath = path.join(__dirname, '../../uploads/favicons', company.favicon_filename);
+      if (fs.existsSync(faviconPath)) {
+        fs.unlinkSync(faviconPath);
+      }
+    }
+
+    const updated = await prisma.companies.update({
+      where: { id: targetCompanyId },
+      data: {
+        favicon_filename: null
+      },
+      select: {
+        id: true,
+        name: true,
+        logo_filename: true,
+        favicon_filename: true,
+        panel_name: true,
+        header_color: true,
+        menu_color: true,
+        login_bg_color: true,
+        primary_color: true,
+        secondary_color: true,
+        background_color: true,
+        text_color: true,
+        font_family: true,
+        sidebar_text_color: true
+      }
+    });
+
+    logger.info(`Favicon deleted for company ${targetCompanyId}`);
+
+    res.json({
+      success: true,
+      data: updated,
+      message: 'Favicon deleted successfully'
+    });
+  } catch (error) {
+    logger.error('Delete company favicon error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete favicon' });
   }
 };

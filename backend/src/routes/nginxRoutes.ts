@@ -1,19 +1,31 @@
 import express from 'express';
-import { generateVHost, removeVHost, regenerateAllVHosts } from '../controllers/nginxVHostController';
-import { authenticate, requireRole } from '../middlewares/auth';
+import { authenticate } from '../middlewares/auth';
+import {
+  deployNginxConfig,
+  removeNginxConfig,
+  testNginxConfig,
+  reloadNginx,
+  previewNginxConfig,
+} from '../controllers/nginxController';
 
 const router = express.Router();
 
+// All routes require authentication
 router.use(authenticate);
-router.use(requireRole('super_admin')); // All nginx operations require super_admin
 
-// Generate virtual host for a specific mapping
-router.post('/generate-vhost/:mapping_id', generateVHost);
+// Deploy Nginx configuration for a URL mapping
+router.post('/url-mappings/:id/deploy', deployNginxConfig);
 
-// Remove virtual host for a specific mapping
-router.delete('/vhost/:mapping_id', removeVHost);
+// Remove Nginx configuration for a URL mapping
+router.delete('/url-mappings/:id/deploy', removeNginxConfig);
 
-// Regenerate all virtual hosts
-router.post('/regenerate-all', regenerateAllVHosts);
+// Test Nginx configuration (super_admin only)
+router.get('/test', testNginxConfig);
+
+// Reload Nginx (super_admin only)
+router.post('/reload', reloadNginx);
+
+// Generate configuration preview
+router.post('/preview', previewNginxConfig);
 
 export default router;

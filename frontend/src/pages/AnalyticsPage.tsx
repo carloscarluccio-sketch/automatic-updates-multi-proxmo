@@ -28,17 +28,7 @@ import NetworkCheckIcon from '@mui/icons-material/NetworkCheck';
 import ComputerIcon from '@mui/icons-material/Computer';
 import api from '../services/api';
 
-interface VMSummary {
-  total_vms: number;
-  running_vms: number;
-  stopped_vms: number;
-  avg_cpu_usage: number;
-  avg_memory_usage: number;
-  total_network_in_gb: number;
-  total_network_out_gb: number;
-}
-
-interface TopConsumer {
+interface VMMetric {
   vm_id: number;
   vm_name: string;
   vmid: number;
@@ -55,7 +45,17 @@ interface TopConsumer {
   collected_at: string;
 }
 
-interface ClusterSummary {
+interface AnalyticsSummary {
+  total_vms: number;
+  running_vms: number;
+  stopped_vms: number;
+  avg_cpu_usage: number;
+  avg_memory_usage: number;
+  total_network_in_gb: number;
+  total_network_out_gb: number;
+}
+
+interface ClusterAnalytics {
   total_vms: number;
   avg_cpu_usage: number;
   avg_memory_usage: number;
@@ -69,9 +69,9 @@ export const AnalyticsPage: React.FC = () => {
   const [timeRange, setTimeRange] = useState('24h');
   const [selectedCluster, setSelectedCluster] = useState<string>('');
   const [clusters, setClusters] = useState<any[]>([]);
-  const [summary, setSummary] = useState<VMSummary | null>(null);
-  const [clusterSummary, setClusterSummary] = useState<ClusterSummary | null>(null);
-  const [topConsumers, setTopConsumers] = useState<TopConsumer[]>([]);
+  const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
+  const [clusterAnalytics, setClusterAnalytics] = useState<ClusterAnalytics | null>(null);
+  const [topConsumers, setTopConsumers] = useState<VMMetric[]>([]);
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
@@ -107,10 +107,7 @@ export const AnalyticsPage: React.FC = () => {
   const loadSummary = async () => {
     try {
       const response = await api.get(`/analytics/vm/summary?timeRange=${timeRange}`);
-      // Backend returns: { success: true, data: { summary: {...}, time_series: [...] } }
-      if (response.data.success && response.data.data?.summary) {
-        setSummary(response.data.data.summary);
-      }
+      setSummary(response.data.data.summary || null);
     } catch (error) {
       console.error('Failed to load summary:', error);
     }
@@ -120,10 +117,7 @@ export const AnalyticsPage: React.FC = () => {
     if (!selectedCluster) return;
     try {
       const response = await api.get(`/analytics/cluster/${selectedCluster}?timeRange=${timeRange}`);
-      // Backend returns: { success: true, data: { cluster: {...}, summary: {...} } }
-      if (response.data.success && response.data.data?.summary) {
-        setClusterSummary(response.data.data.summary);
-      }
+      setClusterAnalytics(response.data.data.summary || null);
     } catch (error) {
       console.error('Failed to load cluster analytics:', error);
     }
@@ -132,10 +126,7 @@ export const AnalyticsPage: React.FC = () => {
   const loadTopConsumers = async () => {
     try {
       const response = await api.get(`/analytics/top-consumers?metric=cpu&limit=10`);
-      // Backend returns: { success: true, data: { metric: 'cpu', limit: 10, consumers: [...] } }
-      if (response.data.success && response.data.data?.consumers) {
-        setTopConsumers(response.data.data.consumers);
-      }
+      setTopConsumers(response.data.data.consumers || []);
     } catch (error) {
       console.error('Failed to load top consumers:', error);
     }
@@ -189,7 +180,6 @@ export const AnalyticsPage: React.FC = () => {
               <InputLabel>Time Range</InputLabel>
               <Select value={timeRange} label="Time Range" onChange={handleTimeRangeChange}>
                 <MenuItem value="1h">Last Hour</MenuItem>
-                <MenuItem value="6h">Last 6 Hours</MenuItem>
                 <MenuItem value="24h">Last 24 Hours</MenuItem>
                 <MenuItem value="7d">Last 7 Days</MenuItem>
                 <MenuItem value="30d">Last 30 Days</MenuItem>
@@ -215,31 +205,14 @@ export const AnalyticsPage: React.FC = () => {
                 <Card>
                   <CardContent>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <ComputerIcon color="primary" sx={{ mr: 1 }} />
-                      <Typography variant="subtitle2" color="textSecondary">
-                        Virtual Machines
-                      </Typography>
-                    </Box>
-                    <Typography variant="h4">{summary.total_vms}</Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      Running: {summary.running_vms} | Stopped: {summary.stopped_vms}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <TrendingUpIcon color="primary" sx={{ mr: 1 }} />
                       <Typography variant="subtitle2" color="textSecondary">
                         CPU Usage
                       </Typography>
                     </Box>
-                    <Typography variant="h4">{summary.avg_cpu_usage.toFixed(2)}%</Typography>
+                    <Typography variant="h4">{(Number(summary.avg_cpu_usage) || 0).toFixed(2)}%</Typography>
                     <Typography variant="caption" color="textSecondary">
-                      Average across all VMs
+                      Average CPU Usage
                     </Typography>
                   </CardContent>
                 </Card>
@@ -254,15 +227,15 @@ export const AnalyticsPage: React.FC = () => {
                         Memory Usage
                       </Typography>
                     </Box>
-                    <Typography variant="h4">{summary.avg_memory_usage.toFixed(2)}%</Typography>
+                    <Typography variant="h4">{(Number(summary.avg_memory_usage) || 0).toFixed(2)}%</Typography>
                     <Typography variant="caption" color="textSecondary">
-                      Average across all VMs
+                      Average Memory Usage
                     </Typography>
                   </CardContent>
                 </Card>
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} sm={6} md={4}>
                 <Card>
                   <CardContent>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -285,7 +258,7 @@ export const AnalyticsPage: React.FC = () => {
         )}
 
         {/* Cluster Analytics */}
-        {selectedCluster && clusterSummary && (
+        {selectedCluster && clusterAnalytics && (
           <>
             <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
               Cluster Resource Overview
@@ -300,7 +273,7 @@ export const AnalyticsPage: React.FC = () => {
                         Virtual Machines
                       </Typography>
                     </Box>
-                    <Typography variant="h3">{clusterSummary.total_vms}</Typography>
+                    <Typography variant="h3">{clusterAnalytics.total_vms}</Typography>
                     <Typography variant="caption" color="textSecondary">
                       Active VMs in cluster
                     </Typography>
@@ -314,12 +287,12 @@ export const AnalyticsPage: React.FC = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <TrendingUpIcon color="primary" sx={{ mr: 1 }} />
                       <Typography variant="subtitle2" color="textSecondary">
-                        CPU Usage
+                        CPU Allocation
                       </Typography>
                     </Box>
-                    <Typography variant="h4">{clusterSummary.avg_cpu_usage.toFixed(2)}%</Typography>
+                    <Typography variant="h4">{(Number(clusterAnalytics.avg_cpu_usage) || 0).toFixed(2)}%</Typography>
                     <Typography variant="caption" color="textSecondary">
-                      Average across cluster
+                      Average CPU Usage
                     </Typography>
                   </CardContent>
                 </Card>
@@ -331,12 +304,12 @@ export const AnalyticsPage: React.FC = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <MemoryIcon color="secondary" sx={{ mr: 1 }} />
                       <Typography variant="subtitle2" color="textSecondary">
-                        Memory Usage
+                        Memory Allocation
                       </Typography>
                     </Box>
-                    <Typography variant="h4">{clusterSummary.avg_memory_usage.toFixed(2)}%</Typography>
+                    <Typography variant="h4">{(Number(clusterAnalytics.avg_memory_usage) || 0).toFixed(2)}%</Typography>
                     <Typography variant="caption" color="textSecondary">
-                      Average across cluster
+                      Average Memory Usage
                     </Typography>
                   </CardContent>
                 </Card>
@@ -358,50 +331,42 @@ export const AnalyticsPage: React.FC = () => {
                 <TableCell>Company</TableCell>
                 <TableCell align="right">CPU Usage</TableCell>
                 <TableCell align="right">Memory Usage</TableCell>
-                <TableCell align="right">Status</TableCell>
                 <TableCell align="right">Last Updated</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {topConsumers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center">
+                  <TableCell colSpan={6} align="center">
                     <Typography variant="body2" color="textSecondary">
                       No metrics data available
                     </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
-                topConsumers.map((consumer) => (
-                  <TableRow key={consumer.vm_id}>
-                    <TableCell>{consumer.vm_name}</TableCell>
+                topConsumers.map((metric) => (
+                  <TableRow key={metric.vm_id}>
+                    <TableCell>{metric.vm_name}</TableCell>
                     <TableCell>
-                      <Chip label={consumer.vmid} size="small" />
+                      <Chip label={metric.vmid} size="small" />
                     </TableCell>
-                    <TableCell>{consumer.company_name}</TableCell>
+                    <TableCell>{metric.company_name}</TableCell>
                     <TableCell align="right">
                       <Chip
-                        label={`${consumer.cpu_usage.toFixed(2)}%`}
-                        color={consumer.cpu_usage > 80 ? 'error' : consumer.cpu_usage > 60 ? 'warning' : 'success'}
+                        label={`${Number(metric.cpu_usage).toFixed(2)}%`}
+                        color={Number(metric.cpu_usage) > 80 ? 'error' : Number(metric.cpu_usage) > 60 ? 'warning' : 'success'}
                         size="small"
                       />
                     </TableCell>
                     <TableCell align="right">
                       <Chip
-                        label={`${consumer.memory_usage.toFixed(2)}%`}
-                        color={consumer.memory_usage > 80 ? 'error' : consumer.memory_usage > 60 ? 'warning' : 'success'}
+                        label={`${Number(metric.memory_usage).toFixed(2)}%`}
+                        color={Number(metric.memory_usage) > 80 ? 'error' : Number(metric.memory_usage) > 60 ? 'warning' : 'success'}
                         size="small"
                       />
                     </TableCell>
                     <TableCell align="right">
-                      <Chip
-                        label={consumer.status}
-                        color={consumer.status === 'running' ? 'success' : 'default'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      {new Date(consumer.collected_at).toLocaleString()}
+                      {new Date(metric.collected_at).toLocaleString()}
                     </TableCell>
                   </TableRow>
                 ))

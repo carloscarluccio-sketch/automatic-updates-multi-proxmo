@@ -1,0 +1,422 @@
+import { Response } from 'express';
+import { AuthRequest } from '../middlewares/auth';
+import prisma from '../config/database';
+import logger from '../utils/logger';
+import axios from 'axios';
+import https from 'https';
+import { decrypt } from '../utils/encryption';
+
+/**
+ * ISO Sync Controller
+ * Handles syncing ISO images between multiple Proxmox clusters
+ */
+
+interface ProxmoxCluster {
+  id: number;
+  host: string;
+  port: number;
+  username: string;
+  password_encrypted: string;
+  realm: string;
+}
+
+interface ISOSyncJob {
+  id: string;
+  sourceIsoId: number;
+  sourceClusterId: number;
+  targetClusterIds: number[];
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  progress: number;
+  results: Array<{
+    clusterId: number;
+    status: 'pending' | 'success' | 'failed';
+    message?: string;
+    isoId?: number;
+  }>;
+  startedAt?: Date;
+  completedAt?: Date;
+  error?: string;
+}
+
+// In-memory store for sync jobs (in production, use database)
+const syncJobs: Map<string, ISOSyncJob> = new Map();
+
+/**
+ * Get Proxmox ticket for authentication
+ */
+async function getProxmoxTicket(cluster: ProxmoxCluster): Promise<string> {
+  const password = decrypt(cluster.password_encrypted);
+
+  const response = await axios.post(
+    `https://${cluster.host}:${cluster.port}/api2/json/access/ticket`,
+    {
+      username: cluster.username,
+      password
+    },
+    {
+      httpsAgent: new https.Agent({ rejectUnauthorized: false })
+    }
+  );
+
+  if (!response.data || !response.data.data || !response.data.data.ticket) {
+    throw new Error('Failed to get Proxmox authentication ticket');
+  }
+
+  return response.data.data.ticket;
+}
+
+/**
+ * Download ISO from source cluster
+ */
+async function downloadISO(
+  cluster: ProxmoxCluster,
+  node: string,
+  storage: string,
+  filename: string,
+  ticket: string
+): Promise<Buffer> {
+  // Construct the volume ID in Proxmox format: storage:iso/filename
+  const volid = `${storage}:iso/${filename}`;
+  const url = `https://${cluster.host}:${cluster.port}/api2/json/nodes/${node}/storage/${storage}/download-url`;
+
+  // First get the download URL from Proxmox
+  const downloadUrlResponse = await axios.get(url, {
+    params: {
+      content: 'iso',
+      volid: volid
+    },
+    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+    headers: {
+      Cookie: `PVEAuthCookie=${ticket}`
+    }
+  });
+
+  if (!downloadUrlResponse.data || !downloadUrlResponse.data.data || !downloadUrlResponse.data.data.url) {
+    throw new Error('Failed to get ISO download URL from Proxmox');
+  }
+
+  const downloadUrl = downloadUrlResponse.data.data.url;
+
+  // Download the ISO file
+  const isoResponse = await axios.get(`https://${cluster.host}:${cluster.port}${downloadUrl}`, {
+    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+    headers: {
+      Cookie: `PVEAuthCookie=${ticket}`
+    },
+    responseType: 'arraybuffer',
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity
+  });
+
+  return Buffer.from(isoResponse.data);
+}
+/**
+ * Upload ISO to target cluster
+ */
+async function uploadISO(
+  cluster: ProxmoxCluster,
+  node: string,
+  storage: string,
+  filename: string,
+  content: Buffer,
+  ticket: string
+): Promise<void> {
+  const FormData = require('form-data');
+  const form = new FormData();
+
+  form.append('content', 'iso');
+  form.append('filename', content, filename);
+
+  const url = `https://${cluster.host}:${cluster.port}/api2/json/nodes/${node}/storage/${storage}/upload`;
+
+  await axios.post(url, form, {
+    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+    headers: {
+      ...form.getHeaders(),
+      Cookie: `PVEAuthCookie=${ticket}`
+    },
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity
+  });
+}
+
+/**
+ * Start ISO sync job
+ */
+export const startISOSync = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { isoId, targetClusterIds, targetStorage, targetNode } = req.body;
+    const { role, company_id } = req.user!;
+
+    if (!isoId || !targetClusterIds || !Array.isArray(targetClusterIds) || targetClusterIds.length === 0) {
+      res.status(400).json({
+        success: false,
+        message: 'Missing required fields: isoId, targetClusterIds (array)'
+      });
+      return;
+    }
+
+    // Get source ISO
+    const iso = await prisma.isos.findUnique({
+      where: { id: Number(isoId) }
+    });
+
+    if (!iso) {
+      res.status(404).json({ success: false, message: 'Source ISO not found' });
+      return;
+    }
+
+    // Permission check
+    if (role !== 'super_admin' && iso.company_id !== company_id) {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+
+    // Get source cluster
+    const sourceCluster = await prisma.proxmox_clusters.findUnique({
+      where: { id: iso.cluster_id }
+    });
+
+    if (!sourceCluster) {
+      res.status(404).json({ success: false, message: 'Source cluster not found' });
+      return;
+    }
+
+    // Validate target clusters
+    const targetClusters = await prisma.proxmox_clusters.findMany({
+      where: {
+        id: { in: targetClusterIds.map((id: any) => Number(id)) }
+      }
+    });
+
+    if (targetClusters.length !== targetClusterIds.length) {
+      res.status(400).json({ success: false, message: 'One or more target clusters not found' });
+      return;
+    }
+
+    // Create sync job
+    const jobId = `iso-sync-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const syncJob: ISOSyncJob = {
+      id: jobId,
+      sourceIsoId: iso.id,
+      sourceClusterId: iso.cluster_id,
+      targetClusterIds: targetClusterIds.map((id: any) => Number(id)),
+      status: 'pending',
+      progress: 0,
+      results: targetClusterIds.map((id: any) => ({
+        clusterId: Number(id),
+        status: 'pending'
+      }))
+    };
+
+    syncJobs.set(jobId, syncJob);
+
+    // Start async sync process
+    processISOSync(jobId, iso, sourceCluster, targetClusters, targetStorage, targetNode, req.user!.id).catch(error => {
+      logger.error(`ISO sync job ${jobId} failed:`, error);
+      const job = syncJobs.get(jobId);
+      if (job) {
+        job.status = 'failed';
+        job.error = error.message;
+        job.completedAt = new Date();
+      }
+    });
+
+    res.status(202).json({
+      success: true,
+      data: {
+        jobId,
+        message: 'ISO sync job started',
+        status: 'pending'
+      }
+    });
+  } catch (error) {
+    logger.error('Start ISO sync error:', error);
+    res.status(500).json({ success: false, message: 'Failed to start ISO sync' });
+  }
+};
+
+/**
+ * Process ISO sync job asynchronously
+ */
+async function processISOSync(
+  jobId: string,
+  iso: any,
+  sourceCluster: any,
+  targetClusters: any[],
+  targetStorage: string,
+  targetNode: string,
+  userId: number
+): Promise<void> {
+  const job = syncJobs.get(jobId);
+  if (!job) return;
+
+  job.status = 'in_progress';
+  job.startedAt = new Date();
+
+  try {
+    // Get source cluster ticket
+    const sourceTicket = await getProxmoxTicket(sourceCluster);
+
+    // Download ISO from source
+    logger.info(`Downloading ISO ${iso.filename} from cluster ${sourceCluster.name}`);
+    const isoContent = await downloadISO(sourceCluster, iso.node, iso.storage, iso.filename, sourceTicket);
+
+    job.progress = 10;
+
+    // Upload to each target cluster
+    const progressIncrement = 90 / targetClusters.length;
+
+    for (let i = 0; i < targetClusters.length; i++) {
+      const targetCluster = targetClusters[i];
+      const resultIndex = job.results.findIndex(r => r.clusterId === targetCluster.id);
+
+      try {
+        logger.info(`Uploading ISO to cluster ${targetCluster.name}`);
+
+        // Get target cluster ticket
+        const targetTicket = await getProxmoxTicket(targetCluster);
+
+        // Determine target node (use first node if not specified)
+        let uploadNode = targetNode;
+        if (!uploadNode) {
+          // Get first available node from cluster
+          const nodesResponse = await axios.get(
+            `https://${targetCluster.host}:${targetCluster.port}/api2/json/nodes`,
+            {
+              httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+              headers: { Cookie: `PVEAuthCookie=${targetTicket}` }
+            }
+          );
+          if (nodesResponse.data?.data && nodesResponse.data.data.length > 0) {
+            uploadNode = nodesResponse.data.data[0].node;
+          } else {
+            throw new Error('No nodes available in target cluster');
+          }
+        }
+
+        // Upload ISO
+        await uploadISO(
+          targetCluster,
+          uploadNode,
+          targetStorage || iso.storage,
+          iso.filename,
+          isoContent,
+          targetTicket
+        );
+
+        // Create ISO record in database
+        const newIso = await prisma.isos.create({
+          data: {
+            name: iso.name,
+            filename: iso.filename,
+            size_bytes: iso.size_bytes,
+            cluster_id: targetCluster.id,
+            storage: targetStorage || iso.storage,
+            node: uploadNode,
+            company_id: iso.company_id,
+            is_default: iso.is_default,
+            description: `Synced from cluster ${sourceCluster.name}`,
+            uploaded_by: userId
+          }
+        });
+
+        if (resultIndex >= 0) {
+          job.results[resultIndex].status = 'success';
+          job.results[resultIndex].message = 'ISO synced successfully';
+          job.results[resultIndex].isoId = newIso.id;
+        }
+
+        logger.info(`ISO synced to cluster ${targetCluster.name}, new ISO ID: ${newIso.id}`);
+      } catch (error: any) {
+        logger.error(`Failed to sync ISO to cluster ${targetCluster.name}:`, error);
+        if (resultIndex >= 0) {
+          job.results[resultIndex].status = 'failed';
+          job.results[resultIndex].message = error.message || 'Unknown error';
+        }
+      }
+
+      job.progress = 10 + (i + 1) * progressIncrement;
+    }
+
+    // Check if all succeeded
+    const allSucceeded = job.results.every(r => r.status === 'success');
+    job.status = allSucceeded ? 'completed' : 'failed';
+    job.progress = 100;
+    job.completedAt = new Date();
+
+    logger.info(`ISO sync job ${jobId} completed with status: ${job.status}`);
+  } catch (error: any) {
+    logger.error(`ISO sync job ${jobId} failed:`, error);
+    job.status = 'failed';
+    job.error = error.message;
+    job.completedAt = new Date();
+  }
+}
+
+/**
+ * Get ISO sync job status
+ */
+export const getISOSyncStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { jobId } = req.params;
+
+    const job = syncJobs.get(jobId);
+    if (!job) {
+      res.status(404).json({ success: false, message: 'Sync job not found' });
+      return;
+    }
+
+    res.json({ success: true, data: job });
+  } catch (error) {
+    logger.error('Get ISO sync status error:', error);
+    res.status(500).json({ success: false, message: 'Failed to get sync status' });
+  }
+};
+
+/**
+ * Get all ISO sync jobs
+ */
+export const getISOSyncJobs = async (_req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const jobs = Array.from(syncJobs.values()).sort((a, b) => {
+      return (b.startedAt?.getTime() || 0) - (a.startedAt?.getTime() || 0);
+    });
+
+    res.json({ success: true, data: jobs });
+  } catch (error) {
+    logger.error('Get ISO sync jobs error:', error);
+    res.status(500).json({ success: false, message: 'Failed to get sync jobs' });
+  }
+};
+
+/**
+ * Cancel ISO sync job
+ */
+export const cancelISOSync = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { jobId } = req.params;
+
+    const job = syncJobs.get(jobId);
+    if (!job) {
+      res.status(404).json({ success: false, message: 'Sync job not found' });
+      return;
+    }
+
+    if (job.status === 'completed' || job.status === 'failed') {
+      res.status(400).json({ success: false, message: 'Cannot cancel completed or failed job' });
+      return;
+    }
+
+    // Mark as failed (actual cancellation would require more complex state management)
+    job.status = 'failed';
+    job.error = 'Cancelled by user';
+    job.completedAt = new Date();
+
+    logger.info(`ISO sync job ${jobId} cancelled`);
+    res.json({ success: true, message: 'Sync job cancelled' });
+  } catch (error) {
+    logger.error('Cancel ISO sync error:', error);
+    res.status(500).json({ success: false, message: 'Failed to cancel sync job' });
+  }
+};

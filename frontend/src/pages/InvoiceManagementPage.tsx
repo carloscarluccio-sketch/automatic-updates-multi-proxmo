@@ -125,6 +125,10 @@ const InvoiceManagementPage: React.FC = () => {
   // Form data
   const [sendEmail, setSendEmail] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [generateLoading, setGenerateLoading] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState('');
+
 
   useEffect(() => {
     loadInitialData();
@@ -239,6 +243,35 @@ const InvoiceManagementPage: React.FC = () => {
     }
   };
 
+
+  const handleGenerateInvoice = async () => {
+    if (!selectedCompany) {
+      setError('Please select a company first');
+      return;
+    }
+
+    try {
+      setGenerateLoading(true);
+      setError('');
+
+      const response = await api.post('/billing/generate-invoice', {
+        company_id: selectedCompany,
+        billing_month: selectedMonth || undefined
+      });
+
+      setError('');
+      alert(`Invoice generated successfully! Invoice #${response.data.data.invoice_number}`);
+      setCreateDialogOpen(false);
+      setSelectedMonth('');
+      loadInvoices();
+      loadStatistics();
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Failed to generate invoice');
+    } finally {
+      setGenerateLoading(false);
+    }
+  };
+
   const handleGeneratePDF = async (invoiceId: number) => {
     try {
       setLoading(true);
@@ -331,17 +364,29 @@ const InvoiceManagementPage: React.FC = () => {
               Manage PAYG invoices and billing
             </Typography>
           </Box>
-          <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={() => {
-              loadInvoices();
-              loadStatistics();
-            }}
-            disabled={!selectedCompany || loading}
-          >
-            Refresh
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            {currentUser?.role === 'super_admin' && (
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => setCreateDialogOpen(true)}
+                disabled={!selectedCompany || loading}
+              >
+                Generate Invoice
+              </Button>
+            )}
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={() => {
+                loadInvoices();
+                loadStatistics();
+              }}
+              disabled={!selectedCompany || loading}
+            >
+              Refresh
+            </Button>
+          </Box>
         </Box>
 
         {/* Company and Filter Selection */}
@@ -727,6 +772,51 @@ const InvoiceManagementPage: React.FC = () => {
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* Generate Invoice Dialog */}
+        <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Generate Invoice Manually</DialogTitle>
+          <DialogContent>
+            <Box sx={{ pt: 2 }}>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                Generate an invoice for the selected company. Leave the billing month empty to generate an invoice for the current month.
+              </Typography>
+
+              {selectedCompany && companies.find(c => c.id === selectedCompany) && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  Generating invoice for: <strong>{companies.find(c => c.id === selectedCompany)?.name}</strong>
+                </Alert>
+              )}
+
+              <TextField
+                fullWidth
+                label="Billing Month (Optional)"
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                helperText="Leave empty for current month, or select a specific month"
+                sx={{ mt: 2 }}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCreateDialogOpen(false)} disabled={generateLoading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleGenerateInvoice}
+              variant="contained"
+              color="primary"
+              disabled={generateLoading || !selectedCompany}
+            >
+              {generateLoading ? <CircularProgress size={24} /> : 'Generate Invoice'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
       </Box>
     </Container>
   );

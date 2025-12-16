@@ -141,29 +141,49 @@ model api_token_usage {
   @@index([token_id, created_at], map: "idx_token_time")
 }
 
+model api_token_usage_logs {
+  id               Int        @id @default(autoincrement())
+  token_id         Int
+  endpoint         String     @db.VarChar(255)
+  method           String     @db.VarChar(10)
+  status_code      Int
+  ip_address       String?    @db.VarChar(45)
+  user_agent       String?    @db.Text
+  request_body     Json?
+  response_time_ms Int?
+  created_at       DateTime?  @default(now()) @db.Timestamp(0)
+  api_tokens       api_tokens @relation(fields: [token_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "api_token_usage_logs_ibfk_1")
+
+  @@index([created_at], map: "idx_created_at")
+  @@index([endpoint], map: "idx_endpoint")
+  @@index([token_id], map: "idx_token_id")
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model api_tokens {
-  id              Int               @id @default(autoincrement())
-  user_id         Int
-  company_id      Int
-  name            String            @db.VarChar(100)
-  token_hash      String            @db.VarChar(255)
-  token_prefix    String            @db.VarChar(12)
-  scopes          String            @db.LongText
-  ip_whitelist    String?           @db.LongText
-  rate_limit      Int?              @default(100)
-  expires_at      DateTime?         @db.Timestamp(0)
-  last_used_at    DateTime?         @db.Timestamp(0)
-  last_used_ip    String?           @db.VarChar(45)
-  request_count   BigInt?           @default(0)
-  is_active       Boolean?          @default(true)
-  created_at      DateTime?         @default(now()) @db.Timestamp(0)
-  revoked_at      DateTime?         @db.Timestamp(0)
-  revoked_by      Int?
-  api_rate_limits api_rate_limits[]
-  api_token_usage api_token_usage[]
-  users           users             @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "api_tokens_ibfk_1")
-  companies       companies         @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "api_tokens_ibfk_2")
+  id                       Int                        @id @default(autoincrement())
+  user_id                  Int
+  company_id               Int
+  name                     String                     @db.VarChar(100)
+  token_hash               String                     @db.VarChar(255)
+  token_prefix             String                     @db.VarChar(12)
+  scopes                   String                     @db.LongText
+  ip_whitelist             String?                    @db.LongText
+  rate_limit               Int?                       @default(100)
+  expires_at               DateTime?                  @db.Timestamp(0)
+  last_used_at             DateTime?                  @db.Timestamp(0)
+  last_used_ip             String?                    @db.VarChar(45)
+  request_count            BigInt?                    @default(0)
+  is_active                Boolean?                   @default(true)
+  created_at               DateTime?                  @default(now()) @db.Timestamp(0)
+  revoked_at               DateTime?                  @db.Timestamp(0)
+  revoked_by               Int?
+  api_rate_limits          api_rate_limits[]
+  api_token_usage          api_token_usage[]
+  api_token_usage_logs     api_token_usage_logs[]
+  users                    users                      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "api_tokens_ibfk_1")
+  companies                companies                  @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "api_tokens_ibfk_2")
+  onboarding_registrations onboarding_registrations[]
 
   @@index([company_id], map: "idx_api_tokens_company")
   @@index([expires_at], map: "idx_api_tokens_expires")
@@ -395,6 +415,27 @@ model backup_servers {
   @@unique([host, port], map: "unique_host_port")
 }
 
+model billing_audit_log {
+  id           Int                      @id @default(autoincrement())
+  company_id   Int
+  invoice_id   Int?
+  action       billing_audit_log_action
+  description  String                   @db.Text
+  old_values   Json?
+  new_values   Json?
+  performed_by Int?
+  ip_address   String?                  @db.VarChar(45)
+  created_at   DateTime?                @default(now()) @db.Timestamp(0)
+  companies    companies                @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "billing_audit_log_ibfk_1")
+  invoices     invoices?                @relation(fields: [invoice_id], references: [id], onUpdate: NoAction, map: "billing_audit_log_ibfk_2")
+  users        users?                   @relation(fields: [performed_by], references: [id], onUpdate: NoAction, map: "billing_audit_log_ibfk_3")
+
+  @@index([action], map: "idx_action")
+  @@index([company_id], map: "idx_company")
+  @@index([invoice_id], map: "invoice_id")
+  @@index([performed_by], map: "performed_by")
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model billing_records {
   id                     BigInt                  @id @default(autoincrement())
@@ -430,6 +471,24 @@ model bookmarks {
   users       users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "bookmarks_ibfk_1")
 
   @@index([user_id], map: "idx_user_id")
+}
+
+model bulk_cluster_operations {
+  id               Int                                    @id @default(autoincrement())
+  operation_type   bulk_cluster_operations_operation_type
+  cluster_ids      Json
+  total_clusters   Int
+  success_count    Int?                                   @default(0)
+  failure_count    Int?                                   @default(0)
+  results          Json?
+  started_at       DateTime?                              @default(now()) @db.Timestamp(0)
+  completed_at     DateTime?                              @db.Timestamp(0)
+  duration_seconds Int?
+  initiated_by     Int
+  status           bulk_cluster_operations_status?        @default(pending)
+
+  @@index([initiated_by], map: "idx_initiated_by")
+  @@index([status], map: "idx_status")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -481,6 +540,8 @@ model cluster_backup_servers {
 model companies {
   id                         Int                          @id @default(autoincrement())
   name                       String                       @unique(map: "name") @db.VarChar(255)
+  company_type               String?                      @default("standard") @db.VarChar(50)
+  billing_model              companies_billing_model?     @default(hybrid)
   owner_name                 String                       @db.VarChar(255)
   contact_name               String?                      @db.VarChar(255)
   primary_email              String                       @unique(map: "primary_email") @db.VarChar(255)
@@ -490,6 +551,7 @@ model companies {
   status                     companies_status?            @default(active)
   require_2fa                Boolean?                     @default(false)
   logo_filename              String?                      @db.VarChar(255)
+  favicon_filename           String?                      @db.VarChar(255)
   panel_name                 String?                      @db.VarChar(100)
   header_color               String?                      @db.VarChar(7)
   menu_color                 String?                      @db.VarChar(7)
@@ -509,6 +571,15 @@ model companies {
   default_nat_type           companies_default_nat_type?  @default(port_forward)
   allow_nat_methods          String?                      @db.LongText
   nat_enabled                Boolean?                     @default(true)
+  primary_color              String?                      @default("#1976d2") @db.VarChar(7)
+  secondary_color            String?                      @default("#dc004e") @db.VarChar(7)
+  background_color           String?                      @default("#f5f5f5") @db.VarChar(7)
+  text_color                 String?                      @default("#212121") @db.VarChar(7)
+  font_family                String?                      @default("Roboto, sans-serif") @db.VarChar(100)
+  sidebar_text_color         String?                      @default("#ffffff") @db.VarChar(7)
+  billing_day_of_month       Int?                         @default(1)
+  billing_active             Boolean?                     @default(true)
+  next_billing_date          DateTime?                    @db.Date
   activity_logs              activity_logs[]
   alert_history              alert_history[]
   alert_rules                alert_rules[]
@@ -520,14 +591,18 @@ model companies {
   backup_policies            backup_policies[]
   backup_restore_jobs        backup_restore_jobs[]
   backup_schedules           backup_schedules[]
+  billing_audit_log          billing_audit_log[]
   billing_records            billing_records[]
   bulk_operations_log        bulk_operations_log[]
   company_backup_assignments company_backup_assignments[]
   company_billing            company_billing?
   company_clusters           company_clusters[]
+  company_payment_methods    company_payment_methods[]
+  company_pricing_plans      company_pricing_plans[]
   company_quotas             company_quotas[]
   company_sso_config         company_sso_config[]
   company_storage_quotas     company_storage_quotas[]
+  company_subscriptions      company_subscriptions[]
   company_url_mappings       company_url_mappings[]
   customer_portal_sessions   customer_portal_sessions[]
   daily_vm_usage             daily_vm_usage[]
@@ -535,9 +610,14 @@ model companies {
   dr_company_quotas          dr_company_quotas?
   dr_vm_policies             dr_vm_policies[]
   email_queue                email_queue[]
+  email_templates            email_templates[]
   esxi_hosts                 esxi_hosts[]
   export_history             export_history[]
   feedback_submissions       feedback_submissions[]
+  help_article_changelog     help_article_changelog[]
+  help_article_drafts        help_article_drafts[]
+  help_articles              help_articles[]
+  help_faqs                  help_faqs[]
   invoices                   invoices[]
   ip_ranges                  ip_ranges[]
   ip_reservations            ip_reservations[]
@@ -545,8 +625,11 @@ model companies {
   monitoring_metrics         monitoring_metrics[]
   nat_rules                  nat_rules[]
   network_edges              network_edges[]
+  onboarding_registrations   onboarding_registrations[]
   opnsense_instances         opnsense_instances[]
+  payment_method_audit       payment_method_audit[]
   payments                   payments[]
+  pricing_plans              pricing_plans[]
   pricing_tiers              pricing_tiers[]
   profiles                   profiles[]
   proxmox_clusters           proxmox_clusters[]
@@ -559,17 +642,22 @@ model companies {
   saved_filters              saved_filters[]
   sso_login_audit            sso_login_audit[]
   support_tickets            support_tickets[]
+  ui_customizations          ui_customizations[]
   usage_metrics              usage_metrics[]
   usage_tracking             usage_tracking[]
   user_profiles              user_profiles[]
   users                      users[]
   virtual_machines           virtual_machines[]
+  vm_billing_snapshots       vm_billing_snapshots[]
   vm_daily_summaries         vm_daily_summaries[]
   vm_import_jobs             vm_import_jobs[]
   vm_projects                vm_projects[]
   vm_resource_metrics        vm_resource_metrics[]
   vm_tags                    vm_tags[]
   vm_templates               vm_templates[]
+  webhooks                   webhooks[]
+  whitelabel_assets          whitelabel_assets[]
+  whitelabel_settings        whitelabel_settings?
 
   @@index([status], map: "idx_companies_status")
   @@index([contact_email], map: "idx_contact_email")
@@ -603,28 +691,52 @@ model company_backup_assignments {
   @@index([backup_server_id], map: "idx_company_backup_server")
 }
 
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model company_billing {
-  id                                                                  Int                             @id @default(autoincrement())
-  company_id                                                          Int                             @unique(map: "company_id")
+  id                                                                  Int                                     @id @default(autoincrement())
+  company_id                                                          Int                                     @unique(map: "company_id")
   pricing_tier_vm                                                     Int?
   pricing_tier_storage                                                Int?
   pricing_tier_bandwidth                                              Int?
-  billing_email                                                       String                          @db.VarChar(255)
-  billing_contact_name                                                String?                         @db.VarChar(100)
-  billing_address                                                     String?                         @db.Text
-  tax_id                                                              String?                         @db.VarChar(50)
-  tax_rate                                                            Decimal?                        @default(0.00) @db.Decimal(5, 2)
-  payment_method                                                      company_billing_payment_method? @default(manual)
-  payment_terms_days                                                  Int?                            @default(30)
-  auto_suspend_on_overdue                                             Boolean?                        @default(false)
-  suspend_grace_period_days                                           Int?                            @default(7)
-  created_at                                                          DateTime?                       @default(now()) @db.Timestamp(0)
-  updated_at                                                          DateTime?                       @default(now()) @db.Timestamp(0)
-  companies                                                           companies                       @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "company_billing_ibfk_1")
-  pricing_tiers_company_billing_pricing_tier_vmTopricing_tiers        pricing_tiers?                  @relation("company_billing_pricing_tier_vmTopricing_tiers", fields: [pricing_tier_vm], references: [id], onUpdate: NoAction, map: "company_billing_ibfk_2")
-  pricing_tiers_company_billing_pricing_tier_storageTopricing_tiers   pricing_tiers?                  @relation("company_billing_pricing_tier_storageTopricing_tiers", fields: [pricing_tier_storage], references: [id], onUpdate: NoAction, map: "company_billing_ibfk_3")
-  pricing_tiers_company_billing_pricing_tier_bandwidthTopricing_tiers pricing_tiers?                  @relation("company_billing_pricing_tier_bandwidthTopricing_tiers", fields: [pricing_tier_bandwidth], references: [id], onUpdate: NoAction, map: "company_billing_ibfk_4")
+  billing_email                                                       String                                  @db.VarChar(255)
+  billing_contact_name                                                String?                                 @db.VarChar(100)
+  billing_address                                                     String?                                 @db.Text
+  tax_id                                                              String?                                 @db.VarChar(50)
+  tax_rate                                                            Decimal?                                @default(0.00) @db.Decimal(5, 2)
+  payment_method                                                      company_billing_payment_method?         @default(manual)
+  payment_terms_days                                                  Int?                                    @default(30)
+  auto_suspend_on_overdue                                             Boolean?                                @default(false)
+  suspend_grace_period_days                                           Int?                                    @default(7)
+  created_at                                                          DateTime?                               @default(now()) @db.Timestamp(0)
+  updated_at                                                          DateTime?                               @default(now()) @db.Timestamp(0)
+  stripe_customer_id                                                  String?                                 @db.VarChar(255)
+  stripe_payment_method_id                                            String?                                 @db.VarChar(255)
+  paypal_email                                                        String?                                 @db.VarChar(255)
+  paypal_subscription_id                                              String?                                 @db.VarChar(255)
+  bank_account_name                                                   String?                                 @db.VarChar(255)
+  bank_account_number_encrypted                                       String?                                 @db.Text
+  bank_routing_number                                                 String?                                 @db.VarChar(50)
+  bank_name                                                           String?                                 @db.VarChar(255)
+  preferred_currency                                                  String?                                 @default("USD") @db.VarChar(3)
+  auto_charge_enabled                                                 Boolean?                                @default(false)
+  billing_cycle_override                                              company_billing_billing_cycle_override?
+  payment_gateway_metadata                                            Json?
+  current_pricing_plan_id                                             Int?
+  invoice_prefix                                                      String?                                 @default("INV") @db.VarChar(10)
+  invoice_counter                                                     Int?                                    @default(1)
+  send_invoice_email                                                  Boolean?                                @default(true)
+  overdue_notification_days                                           String?                                 @default("7,14,30") @db.VarChar(50)
+  last_invoice_date                                                   DateTime?                               @db.Date
+  next_invoice_date                                                   DateTime?                               @db.Date
+  companies                                                           companies                               @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "company_billing_ibfk_1")
+  pricing_tiers_company_billing_pricing_tier_vmTopricing_tiers        pricing_tiers?                          @relation("company_billing_pricing_tier_vmTopricing_tiers", fields: [pricing_tier_vm], references: [id], onUpdate: NoAction, map: "company_billing_ibfk_2")
+  pricing_tiers_company_billing_pricing_tier_storageTopricing_tiers   pricing_tiers?                          @relation("company_billing_pricing_tier_storageTopricing_tiers", fields: [pricing_tier_storage], references: [id], onUpdate: NoAction, map: "company_billing_ibfk_3")
+  pricing_tiers_company_billing_pricing_tier_bandwidthTopricing_tiers pricing_tiers?                          @relation("company_billing_pricing_tier_bandwidthTopricing_tiers", fields: [pricing_tier_bandwidth], references: [id], onUpdate: NoAction, map: "company_billing_ibfk_4")
+  pricing_plans                                                       pricing_plans?                          @relation(fields: [current_pricing_plan_id], references: [id], onUpdate: NoAction, map: "company_billing_ibfk_5")
 
+  @@index([current_pricing_plan_id], map: "current_pricing_plan_id")
+  @@index([payment_method], map: "idx_payment_method")
+  @@index([stripe_customer_id], map: "idx_stripe_customer")
   @@index([pricing_tier_bandwidth], map: "pricing_tier_bandwidth")
   @@index([pricing_tier_storage], map: "pricing_tier_storage")
   @@index([pricing_tier_vm], map: "pricing_tier_vm")
@@ -643,6 +755,86 @@ model company_clusters {
   @@index([company_id], map: "idx_company")
   @@index([cluster_id], map: "idx_company_clusters_cluster")
   @@index([company_id], map: "idx_company_clusters_company")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model company_payment_methods {
+  id                            Int                                          @id @default(autoincrement())
+  company_id                    Int
+  payment_type                  company_payment_methods_payment_type
+  is_primary                    Boolean?                                     @default(false)
+  is_active                     Boolean?                                     @default(true)
+  stripe_customer_id            String?                                      @db.VarChar(255)
+  stripe_payment_method_id      String?                                      @db.VarChar(255)
+  stripe_card_last4             String?                                      @db.VarChar(4)
+  stripe_card_brand             String?                                      @db.VarChar(50)
+  stripe_card_exp_month         Int?
+  stripe_card_exp_year          Int?
+  paypal_email                  String?                                      @db.VarChar(255)
+  paypal_payer_id               String?                                      @db.VarChar(255)
+  paypal_subscription_id        String?                                      @db.VarChar(255)
+  bank_account_name             String?                                      @db.VarChar(255)
+  bank_account_number_encrypted String?                                      @db.Text
+  bank_routing_number           String?                                      @db.VarChar(50)
+  bank_name                     String?                                      @db.VarChar(255)
+  bank_account_type             company_payment_methods_bank_account_type?
+  bank_country                  String?                                      @db.VarChar(2)
+  cc_name_on_card               String?                                      @db.VarChar(255)
+  cc_number_encrypted           String?                                      @db.Text
+  cc_last4                      String?                                      @db.VarChar(4)
+  cc_brand                      String?                                      @db.VarChar(50)
+  cc_exp_month                  Int?
+  cc_exp_year                   Int?
+  cc_cvv_hash                   String?                                      @db.VarChar(255)
+  wire_swift_code               String?                                      @db.VarChar(50)
+  wire_iban                     String?                                      @db.VarChar(50)
+  wire_beneficiary_name         String?                                      @db.VarChar(255)
+  wire_beneficiary_address      String?                                      @db.Text
+  wire_bank_address             String?                                      @db.Text
+  wire_reference                String?                                      @db.VarChar(100)
+  payment_gateway               String?                                      @db.VarChar(50)
+  gateway_customer_id           String?                                      @db.VarChar(255)
+  gateway_token                 String?                                      @db.VarChar(255)
+  gateway_metadata              Json?
+  auto_charge_enabled           Boolean?                                     @default(false)
+  preferred_currency            String?                                      @default("USD") @db.VarChar(3)
+  billing_day_preference        Int?
+  nickname                      String?                                      @db.VarChar(100)
+  notes                         String?                                      @db.Text
+  last_used_at                  DateTime?                                    @db.Timestamp(0)
+  verified_at                   DateTime?                                    @db.Timestamp(0)
+  verification_status           company_payment_methods_verification_status? @default(pending)
+  created_at                    DateTime?                                    @default(now()) @db.Timestamp(0)
+  updated_at                    DateTime?                                    @default(now()) @db.Timestamp(0)
+  created_by                    Int?
+  companies                     companies                                    @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "company_payment_methods_ibfk_1")
+  users                         users?                                       @relation(fields: [created_by], references: [id], onUpdate: NoAction, map: "company_payment_methods_ibfk_2")
+  payment_method_audit          payment_method_audit[]
+
+  @@index([created_by], map: "created_by")
+  @@index([company_id], map: "idx_company")
+  @@index([is_primary], map: "idx_is_primary")
+  @@index([payment_type], map: "idx_payment_type")
+  @@index([stripe_customer_id], map: "idx_stripe_customer")
+}
+
+model company_pricing_plans {
+  id              Int           @id @default(autoincrement())
+  company_id      Int
+  pricing_plan_id Int
+  effective_date  DateTime      @db.Date
+  expiry_date     DateTime?     @db.Date
+  is_active       Boolean?      @default(true)
+  assigned_by     Int?
+  created_at      DateTime?     @default(now()) @db.Timestamp(0)
+  companies       companies     @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "company_pricing_plans_ibfk_1")
+  pricing_plans   pricing_plans @relation(fields: [pricing_plan_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "company_pricing_plans_ibfk_2")
+  users           users?        @relation(fields: [assigned_by], references: [id], onUpdate: NoAction, map: "company_pricing_plans_ibfk_3")
+
+  @@index([assigned_by], map: "assigned_by")
+  @@index([is_active], map: "idx_active")
+  @@index([company_id], map: "idx_company")
+  @@index([pricing_plan_id], map: "pricing_plan_id")
 }
 
 model company_quotas {
@@ -724,30 +916,89 @@ model company_storage_quotas {
   @@index([storage_pool_id], map: "storage_pool_id")
 }
 
+model company_subscriptions {
+  id                     Int                           @id @default(autoincrement())
+  company_id             Int
+  plan_id                Int
+  status                 company_subscriptions_status? @default(trial)
+  trial_ends_at          DateTime?                     @db.Timestamp(0)
+  current_period_start   DateTime                      @db.Timestamp(0)
+  current_period_end     DateTime                      @db.Timestamp(0)
+  cancel_at_period_end   Boolean?                      @default(false)
+  cancelled_at           DateTime?                     @db.Timestamp(0)
+  stripe_subscription_id String?                       @db.VarChar(255)
+  stripe_customer_id     String?                       @db.VarChar(255)
+  created_at             DateTime?                     @default(now()) @db.Timestamp(0)
+  updated_at             DateTime?                     @default(now()) @db.Timestamp(0)
+  companies              companies                     @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "company_subscriptions_ibfk_1")
+  subscription_plans     subscription_plans            @relation(fields: [plan_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "company_subscriptions_ibfk_2")
+
+  @@index([company_id], map: "idx_company")
+  @@index([current_period_end], map: "idx_current_period_end")
+  @@index([status], map: "idx_status")
+  @@index([plan_id], map: "plan_id")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model company_url_mappings {
-  id                       Int                              @id @default(autoincrement())
+  id                       Int                                     @id @default(autoincrement())
   company_id               Int
-  url_pattern              String                           @unique(map: "unique_url") @db.VarChar(255)
-  is_active                Boolean?                         @default(true)
-  created_at               DateTime?                        @default(now()) @db.Timestamp(0)
-  updated_at               DateTime?                        @default(now()) @db.Timestamp(0)
-  ssl_enabled              Boolean?                         @default(false)
-  ssl_certificate          String?                          @db.Text
-  ssl_private_key          String?                          @db.Text
-  ssl_chain                String?                          @db.Text
-  use_letsencrypt          Boolean?                         @default(false)
-  letsencrypt_email        String?                          @db.VarChar(255)
-  letsencrypt_last_renewed DateTime?                        @db.Timestamp(0)
-  ssl_status               company_url_mappings_ssl_status? @default(pending)
-  ssl_last_checked         DateTime?                        @db.Timestamp(0)
-  ssl_error_message        String?                          @db.Text
-  companies                companies                        @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "company_url_mappings_ibfk_1")
+  url_pattern              String                                  @unique(map: "unique_url") @db.VarChar(255)
+  branding_name            String?                                 @db.VarChar(255)
+  is_active                Boolean?                                @default(true)
+  created_at               DateTime?                               @default(now()) @db.Timestamp(0)
+  updated_at               DateTime?                               @default(now()) @db.Timestamp(0)
+  ssl_enabled              Boolean?                                @default(false)
+  ssl_certificate          String?                                 @db.Text
+  ssl_private_key          String?                                 @db.Text
+  ssl_chain                String?                                 @db.Text
+  use_letsencrypt          Boolean?                                @default(false)
+  letsencrypt_email        String?                                 @db.VarChar(255)
+  letsencrypt_last_renewed DateTime?                               @db.Timestamp(0)
+  ssl_status               company_url_mappings_ssl_status?        @default(pending)
+  ssl_last_checked         DateTime?                               @db.Timestamp(0)
+  ssl_error_message        String?                                 @db.Text
+  logo_url                 String?                                 @db.VarChar(500)
+  favicon_url              String?                                 @db.VarChar(500)
+  primary_color            String?                                 @default("#0066cc") @db.VarChar(7)
+  secondary_color          String?                                 @default("#004499") @db.VarChar(7)
+  accent_color             String?                                 @default("#ff6600") @db.VarChar(7)
+  font_family              String?                                 @default("Inter, Arial, sans-serif") @db.VarChar(255)
+  custom_css               String?                                 @db.Text
+  custom_header_html       String?                                 @db.Text
+  custom_footer_html       String?                                 @db.Text
+  meta_title               String?                                 @db.VarChar(255)
+  meta_description         String?                                 @db.Text
+  meta_keywords            String?                                 @db.VarChar(500)
+  og_image_url             String?                                 @db.VarChar(500)
+  terms_url                String?                                 @db.VarChar(500)
+  privacy_url              String?                                 @db.VarChar(500)
+  support_email            String?                                 @db.VarChar(255)
+  support_phone            String?                                 @db.VarChar(50)
+  language                 String?                                 @default("en") @db.VarChar(10)
+  timezone                 String?                                 @default("UTC") @db.VarChar(50)
+  currency                 String?                                 @default("USD") @db.VarChar(3)
+  ga_tracking_id           String?                                 @db.VarChar(50)
+  gtm_container_id         String?                                 @db.VarChar(50)
+  fb_pixel_id              String?                                 @db.VarChar(50)
+  custom_scripts           String?                                 @db.Text
+  login_background_url     String?                                 @db.VarChar(500)
+  login_logo_url           String?                                 @db.VarChar(500)
+  welcome_message          String?                                 @db.Text
+  hide_powered_by          Boolean?                                @default(false)
+  white_label_level        company_url_mappings_white_label_level? @default(basic)
+  branding_settings        Json?
+  companies                companies                               @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "company_url_mappings_ibfk_1")
+  email_templates          email_templates[]
+  ui_customizations        ui_customizations[]
+  whitelabel_assets        whitelabel_assets[]
 
   @@index([company_id, is_active], map: "idx_company_active")
   @@index([use_letsencrypt], map: "idx_company_url_mappings_letsencrypt")
   @@index([ssl_enabled], map: "idx_company_url_mappings_ssl_enabled")
   @@index([ssl_status], map: "idx_company_url_mappings_ssl_status")
   @@index([url_pattern], map: "idx_url_pattern")
+  @@index([white_label_level], map: "idx_white_label_level")
 }
 
 model csrf_tokens {
@@ -1230,8 +1481,36 @@ model email_queue {
   @@index([user_id], map: "user_id")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model email_templates {
+  id                    Int                           @id @default(autoincrement())
+  company_id            Int?
+  url_mapping_id        Int?
+  template_type         email_templates_template_type
+  template_slug         String                        @db.VarChar(255)
+  subject               String                        @db.VarChar(255)
+  html_body             String                        @db.LongText
+  text_body             String?                       @db.Text
+  available_variables   Json?
+  is_active             Boolean?                      @default(true)
+  is_default            Boolean?                      @default(false)
+  parent_template_id    Int?
+  created_at            DateTime?                     @default(now()) @db.Timestamp(0)
+  updated_at            DateTime?                     @default(now()) @db.Timestamp(0)
+  companies             companies?                    @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "email_templates_ibfk_1")
+  company_url_mappings  company_url_mappings?         @relation(fields: [url_mapping_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "email_templates_ibfk_2")
+  email_templates       email_templates?              @relation("email_templatesToemail_templates", fields: [parent_template_id], references: [id], onUpdate: NoAction, map: "email_templates_ibfk_3")
+  other_email_templates email_templates[]             @relation("email_templatesToemail_templates")
+
+  @@unique([company_id, url_mapping_id, template_slug], map: "unique_template")
+  @@index([is_active], map: "idx_active")
+  @@index([company_id], map: "idx_company")
+  @@index([template_type], map: "idx_type")
+  @@index([url_mapping_id], map: "idx_url_mapping")
+  @@index([parent_template_id], map: "parent_template_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model email_templates_old {
   id                Int       @id @default(autoincrement())
   name              String    @unique(map: "name") @db.VarChar(100)
   notification_type String    @db.VarChar(50)
@@ -1242,6 +1521,22 @@ model email_templates {
   is_active         Boolean?  @default(true)
   created_at        DateTime? @default(now()) @db.Timestamp(0)
   updated_at        DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model email_verification_tokens {
+  id                       Int                      @id @default(autoincrement())
+  registration_id          Int
+  email                    String                   @db.VarChar(255)
+  token                    String                   @unique(map: "token") @db.VarChar(255)
+  verified_at              DateTime?                @db.Timestamp(0)
+  expires_at               DateTime                 @db.Timestamp(0)
+  ip_address               String?                  @db.VarChar(45)
+  created_at               DateTime?                @default(now()) @db.Timestamp(0)
+  onboarding_registrations onboarding_registrations @relation(fields: [registration_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "email_verification_tokens_ibfk_1")
+
+  @@index([email], map: "idx_email")
+  @@index([registration_id], map: "idx_registration")
+  @@index([token], map: "idx_token")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1400,6 +1695,180 @@ model feedback_submissions {
   @@index([user_id], map: "user_id")
 }
 
+model global_settings {
+  id                  Int                              @id @default(autoincrement())
+  setting_key         String                           @unique(map: "setting_key") @db.VarChar(100)
+  setting_category    global_settings_setting_category @default(custom)
+  setting_value_text  String?                          @db.Text
+  setting_value_int   Int?
+  setting_value_float Decimal?                         @db.Decimal(10, 2)
+  setting_value_bool  Boolean?
+  setting_value_json  Json?
+  setting_type        global_settings_setting_type     @default(string)
+  description         String?                          @db.Text
+  is_public           Boolean?                         @default(false)
+  is_editable         Boolean?                         @default(true)
+  created_at          DateTime?                        @default(now()) @db.Timestamp(0)
+  updated_at          DateTime?                        @default(now()) @db.Timestamp(0)
+  updated_by          Int?
+
+  @@index([setting_category], map: "idx_category")
+  @@index([setting_key, setting_category], map: "idx_key_category")
+  @@index([is_public], map: "idx_public")
+}
+
+model help_article_changelog {
+  id             Int                           @id @default(autoincrement())
+  article_id     Int
+  changed_by     Int
+  company_id     Int?
+  action         help_article_changelog_action
+  old_values     Json?
+  new_values     Json?
+  change_summary String?                       @db.Text
+  changed_at     DateTime?                     @default(now()) @db.Timestamp(0)
+  help_articles  help_articles                 @relation(fields: [article_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "help_article_changelog_ibfk_1")
+  users          users                         @relation(fields: [changed_by], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "help_article_changelog_ibfk_2")
+  companies      companies?                    @relation(fields: [company_id], references: [id], onUpdate: NoAction, map: "help_article_changelog_ibfk_3")
+
+  @@index([changed_by], map: "changed_by")
+  @@index([company_id], map: "company_id")
+  @@index([article_id], map: "idx_article")
+  @@index([changed_at], map: "idx_changed_at")
+}
+
+model help_article_drafts {
+  id                   Int                               @id @default(autoincrement())
+  article_id           Int?
+  company_id           Int?
+  title                String                            @db.VarChar(255)
+  slug                 String                            @db.VarChar(255)
+  category_id          Int
+  summary              String?                           @db.Text
+  content              String                            @db.MediumText
+  content_type         help_article_drafts_content_type? @default(markdown)
+  visibility           help_article_drafts_visibility?   @default(global)
+  target_company_ids   Json?
+  target_company_types Json?
+  target_roles         Json?
+  difficulty           help_article_drafts_difficulty?   @default(beginner)
+  estimated_read_time  Int?                              @default(5)
+  is_featured          Boolean?                          @default(false)
+  created_by           Int
+  created_at           DateTime?                         @default(now()) @db.Timestamp(0)
+  updated_at           DateTime?                         @default(now()) @db.Timestamp(0)
+  help_articles        help_articles?                    @relation(fields: [article_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "help_article_drafts_ibfk_1")
+  companies            companies?                        @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "help_article_drafts_ibfk_2")
+  help_categories      help_categories                   @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "help_article_drafts_ibfk_3")
+  users                users                             @relation(fields: [created_by], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "help_article_drafts_ibfk_4")
+
+  @@index([category_id], map: "category_id")
+  @@index([created_by], map: "created_by")
+  @@index([article_id], map: "idx_article")
+  @@index([company_id], map: "idx_company")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model help_articles {
+  id                     Int                         @id @default(autoincrement())
+  category_id            Int
+  title                  String                      @db.VarChar(255)
+  slug                   String                      @unique(map: "slug") @db.VarChar(255)
+  summary                String?                     @db.Text
+  content                String                      @db.MediumText
+  content_type           help_articles_content_type? @default(markdown)
+  page_context           String?                     @db.VarChar(100)
+  feature_tag            String?                     @db.VarChar(100)
+  difficulty             help_articles_difficulty?   @default(beginner)
+  estimated_read_time    Int?                        @default(5)
+  view_count             Int?                        @default(0)
+  helpful_count          Int?                        @default(0)
+  not_helpful_count      Int?                        @default(0)
+  is_published           Boolean?                    @default(true)
+  visibility             help_articles_visibility?   @default(global)
+  is_featured            Boolean?                    @default(false)
+  meta_keywords          String?                     @db.Text
+  meta_description       String?                     @db.Text
+  author_id              Int?
+  published_at           DateTime?                   @db.Timestamp(0)
+  created_at             DateTime?                   @default(now()) @db.Timestamp(0)
+  updated_at             DateTime?                   @default(now()) @db.Timestamp(0)
+  target_company_ids     Json?
+  target_company_types   Json?
+  target_roles           Json?
+  created_by_company_id  Int?
+  help_article_changelog help_article_changelog[]
+  help_article_drafts    help_article_drafts[]
+  help_categories        help_categories             @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "help_articles_ibfk_1")
+  users                  users?                      @relation(fields: [author_id], references: [id], onUpdate: NoAction, map: "help_articles_ibfk_2")
+  companies              companies?                  @relation(fields: [created_by_company_id], references: [id], onUpdate: NoAction, map: "help_articles_ibfk_3")
+
+  @@index([author_id], map: "author_id")
+  @@index([category_id], map: "idx_category")
+  @@index([created_by_company_id], map: "idx_created_by_company")
+  @@index([feature_tag], map: "idx_feature_tag")
+  @@index([is_featured], map: "idx_featured")
+  @@index([page_context], map: "idx_page_context")
+  @@index([is_published], map: "idx_published")
+  @@index([slug], map: "idx_slug")
+  @@index([visibility], map: "idx_visibility")
+  @@fulltext([title, summary, content], map: "idx_search")
+}
+
+model help_categories {
+  id                    Int                   @id @default(autoincrement())
+  name                  String                @db.VarChar(100)
+  slug                  String                @unique(map: "slug") @db.VarChar(100)
+  description           String?               @db.Text
+  icon                  String?               @default("HelpOutline") @db.VarChar(50)
+  parent_id             Int?
+  display_order         Int?                  @default(0)
+  is_active             Boolean?              @default(true)
+  created_at            DateTime?             @default(now()) @db.Timestamp(0)
+  updated_at            DateTime?             @default(now()) @db.Timestamp(0)
+  help_article_drafts   help_article_drafts[]
+  help_articles         help_articles[]
+  help_categories       help_categories?      @relation("help_categoriesTohelp_categories", fields: [parent_id], references: [id], onUpdate: NoAction, map: "help_categories_ibfk_1")
+  other_help_categories help_categories[]     @relation("help_categoriesTohelp_categories")
+  help_faqs             help_faqs[]
+
+  @@index([is_active], map: "idx_active")
+  @@index([parent_id], map: "idx_parent")
+  @@index([slug], map: "idx_slug")
+}
+
+model help_faqs {
+  id                    Int                    @id @default(autoincrement())
+  category_id           Int
+  question              String                 @db.Text
+  answer                String                 @db.MediumText
+  answer_type           help_faqs_answer_type? @default(markdown)
+  page_context          String?                @db.VarChar(100)
+  feature_tag           String?                @db.VarChar(100)
+  display_order         Int?                   @default(0)
+  view_count            Int?                   @default(0)
+  helpful_count         Int?                   @default(0)
+  not_helpful_count     Int?                   @default(0)
+  is_published          Boolean?               @default(true)
+  visibility            help_faqs_visibility?  @default(global)
+  created_at            DateTime?              @default(now()) @db.Timestamp(0)
+  updated_at            DateTime?              @default(now()) @db.Timestamp(0)
+  target_company_ids    Json?
+  target_company_types  Json?
+  target_roles          Json?
+  created_by_company_id Int?
+  help_categories       help_categories        @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "help_faqs_ibfk_1")
+  companies             companies?             @relation(fields: [created_by_company_id], references: [id], onUpdate: NoAction, map: "help_faqs_ibfk_2")
+
+  @@index([category_id], map: "idx_category")
+  @@index([created_by_company_id], map: "idx_created_by_company")
+  @@index([feature_tag], map: "idx_feature_tag")
+  @@index([page_context], map: "idx_page_context")
+  @@index([is_published], map: "idx_published")
+  @@index([visibility], map: "idx_visibility")
+  @@fulltext([question, answer], map: "idx_search")
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model invoice_line_items {
@@ -1450,6 +1919,7 @@ model invoices {
   usage_period_start   DateTime?            @db.Date
   usage_period_end     DateTime?            @db.Date
   auto_generated       Boolean?             @default(false)
+  billing_audit_log    billing_audit_log[]
   invoice_line_items   invoice_line_items[]
   companies            companies            @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "invoices_ibfk_1")
   users                users?               @relation(fields: [created_by], references: [id], onUpdate: NoAction, map: "invoices_ibfk_2")
@@ -1585,6 +2055,7 @@ model isos {
   created_at              DateTime?                 @default(now()) @db.Timestamp(0)
   updated_at              DateTime?                 @default(now()) @db.Timestamp(0)
   iso_company_assignments iso_company_assignments[]
+  iso_sync_jobs           iso_sync_jobs[]
 
   @@index([cluster_id], map: "idx_cluster_id")
   @@index([company_id, is_default], map: "idx_company_default")
@@ -1633,6 +2104,25 @@ model nat_deployment_log {
   @@index([deployed_at], map: "idx_deployed_at")
   @@index([nat_rule_id], map: "idx_rule")
   @@index([status], map: "idx_status")
+}
+
+model nat_deployment_metrics {
+  id                     Int                                    @id @default(autoincrement())
+  nat_rule_id            Int?
+  cluster_id             Int
+  deployment_type        nat_deployment_metrics_deployment_type
+  auth_method            nat_deployment_metrics_auth_method
+  deployment_duration_ms Int
+  success                Boolean
+  error_message          String?                                @db.Text
+  commands_executed      Int?                                   @default(1)
+  deployed_at            DateTime?                              @default(now()) @db.Timestamp(0)
+  deployed_by            Int?
+  proxmox_clusters       proxmox_clusters                       @relation(fields: [cluster_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "nat_deployment_metrics_ibfk_1")
+
+  @@index([auth_method], map: "idx_auth_method")
+  @@index([cluster_id], map: "idx_cluster")
+  @@index([deployed_at], map: "idx_deployed_at")
 }
 
 model nat_firewall_rules {
@@ -1827,6 +2317,80 @@ model notification_settings {
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model onboarding_registrations {
+  id                        Int                                    @id @default(autoincrement())
+  tracking_code             String                                 @unique(map: "tracking_code") @db.VarChar(50)
+  company_name              String                                 @db.VarChar(255)
+  contact_email             String                                 @db.VarChar(255)
+  contact_name              String?                                @db.VarChar(255)
+  contact_phone             String?                                @db.VarChar(50)
+  industry                  String?                                @db.VarChar(100)
+  company_size              onboarding_registrations_company_size?
+  country                   String?                                @db.VarChar(100)
+  timezone                  String?                                @default("UTC") @db.VarChar(100)
+  utm_source                String?                                @db.VarChar(255)
+  utm_medium                String?                                @db.VarChar(255)
+  utm_campaign              String?                                @db.VarChar(255)
+  registration_data         Json?
+  status                    onboarding_registrations_status?       @default(pending)
+  rejection_reason          String?                                @db.Text
+  approved_by               Int?
+  approved_at               DateTime?                              @db.Timestamp(0)
+  completed_at              DateTime?                              @db.Timestamp(0)
+  created_via               onboarding_registrations_created_via?  @default(api)
+  api_token_id              Int?
+  company_id                Int?
+  created_at                DateTime?                              @default(now()) @db.Timestamp(0)
+  updated_at                DateTime?                              @default(now()) @db.Timestamp(0)
+  email_verification_tokens email_verification_tokens[]
+  api_tokens                api_tokens?                            @relation(fields: [api_token_id], references: [id], onUpdate: NoAction, map: "onboarding_registrations_ibfk_1")
+  users                     users?                                 @relation(fields: [approved_by], references: [id], onUpdate: NoAction, map: "onboarding_registrations_ibfk_2")
+  companies                 companies?                             @relation(fields: [company_id], references: [id], onUpdate: NoAction, map: "onboarding_registrations_ibfk_3")
+  onboarding_steps          onboarding_steps[]
+
+  @@index([api_token_id], map: "api_token_id")
+  @@index([approved_by], map: "approved_by")
+  @@index([company_id], map: "company_id")
+  @@index([created_at], map: "idx_created_at")
+  @@index([contact_email], map: "idx_email")
+  @@index([status], map: "idx_status")
+  @@index([tracking_code], map: "idx_tracking_code")
+}
+
+model onboarding_steps {
+  id                       Int                      @id @default(autoincrement())
+  registration_id          Int
+  step_name                String                   @db.VarChar(100)
+  step_order               Int
+  status                   onboarding_steps_status? @default(pending)
+  step_data                Json?
+  completed_at             DateTime?                @db.Timestamp(0)
+  error_message            String?                  @db.Text
+  created_at               DateTime?                @default(now()) @db.Timestamp(0)
+  updated_at               DateTime?                @default(now()) @db.Timestamp(0)
+  onboarding_registrations onboarding_registrations @relation(fields: [registration_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "onboarding_steps_ibfk_1")
+
+  @@unique([registration_id, step_name], map: "unique_registration_step")
+  @@index([registration_id], map: "idx_registration")
+  @@index([status], map: "idx_status")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model onboarding_templates {
+  id           Int       @id @default(autoincrement())
+  name         String    @db.VarChar(255)
+  description  String?   @db.Text
+  steps_config Json
+  is_default   Boolean?  @default(false)
+  is_active    Boolean?  @default(true)
+  created_at   DateTime? @default(now()) @db.Timestamp(0)
+  updated_at   DateTime? @default(now()) @db.Timestamp(0)
+
+  @@index([is_active], map: "idx_is_active")
+  @@index([is_default], map: "idx_is_default")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model opnsense_firewall_rules {
   id                  Int                                       @id @default(autoincrement())
   opnsense_id         Int
@@ -1959,6 +2523,29 @@ model opnsense_templates {
   @@index([template_vmid], map: "idx_template_vmid")
 }
 
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model payment_method_audit {
+  id                      Int                         @id @default(autoincrement())
+  company_id              Int
+  payment_method_id       Int?
+  action                  payment_method_audit_action
+  old_values              Json?
+  new_values              Json?
+  description             String                      @db.Text
+  amount                  Decimal?                    @db.Decimal(10, 2)
+  performed_by            Int?
+  ip_address              String?                     @db.VarChar(45)
+  created_at              DateTime?                   @default(now()) @db.Timestamp(0)
+  companies               companies                   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payment_method_audit_ibfk_1")
+  company_payment_methods company_payment_methods?    @relation(fields: [payment_method_id], references: [id], onUpdate: NoAction, map: "payment_method_audit_ibfk_2")
+  users                   users?                      @relation(fields: [performed_by], references: [id], onUpdate: NoAction, map: "payment_method_audit_ibfk_3")
+
+  @@index([action], map: "idx_action")
+  @@index([company_id], map: "idx_company")
+  @@index([payment_method_id], map: "payment_method_id")
+  @@index([performed_by], map: "performed_by")
+}
+
 model payments {
   id                             Int                     @id @default(autoincrement())
   invoice_id                     Int
@@ -2009,6 +2596,33 @@ model pricing_assignments {
   @@index([created_by], map: "created_by")
   @@index([resource_type, resource_id, effective_from, effective_to], map: "idx_resource_lookup")
   @@index([pricing_tier_id], map: "pricing_tier_id")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model pricing_plans {
+  id                       Int                          @id @default(autoincrement())
+  name                     String                       @db.VarChar(100)
+  description              String?                      @db.Text
+  company_id               Int?
+  base_price               Decimal                      @db.Decimal(10, 2)
+  included_cpu_cores       Int?                         @default(2)
+  included_memory_gb       Int?                         @default(4)
+  included_storage_gb      Int?                         @default(50)
+  overage_cpu_core_price   Decimal                      @db.Decimal(10, 4)
+  overage_memory_gb_price  Decimal                      @db.Decimal(10, 4)
+  overage_storage_gb_price Decimal                      @db.Decimal(10, 4)
+  billing_cycle            pricing_plans_billing_cycle? @default(monthly)
+  is_active                Boolean?                     @default(true)
+  is_default               Boolean?                     @default(false)
+  display_order            Int?                         @default(0)
+  created_at               DateTime?                    @default(now()) @db.Timestamp(0)
+  updated_at               DateTime?                    @default(now()) @db.Timestamp(0)
+  company_billing          company_billing[]
+  company_pricing_plans    company_pricing_plans[]
+  companies                companies?                   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "pricing_plans_ibfk_1")
+
+  @@index([is_active], map: "idx_active")
+  @@index([company_id], map: "idx_company")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -2105,6 +2719,7 @@ model proxmox_clusters {
   dr_cluster_pairs_dr_cluster_pairs_primary_cluster_idToproxmox_clusters dr_cluster_pairs[]             @relation("dr_cluster_pairs_primary_cluster_idToproxmox_clusters")
   dr_cluster_pairs_dr_cluster_pairs_dr_cluster_idToproxmox_clusters      dr_cluster_pairs[]             @relation("dr_cluster_pairs_dr_cluster_idToproxmox_clusters")
   ip_ranges                                                              ip_ranges[]
+  iso_sync_jobs                                                          iso_sync_jobs[]
   monitoring_metrics                                                     monitoring_metrics[]
   nat_deployment_metrics                                                 nat_deployment_metrics[]
   nat_rules                                                              nat_rules[]
@@ -2118,6 +2733,7 @@ model proxmox_clusters {
   storage_pools                                                          storage_pools[]
   usage_metrics                                                          usage_metrics[]
   virtual_machines                                                       virtual_machines[]
+  vm_billing_snapshots                                                   vm_billing_snapshots[]
   vm_daily_summaries                                                     vm_daily_summaries[]
   vm_import_jobs                                                         vm_import_jobs[]
   vm_resource_metrics                                                    vm_resource_metrics[]
@@ -2195,6 +2811,23 @@ model quota_violations {
   @@index([quota_id, created_at], map: "idx_quota_time")
   @@index([user_id], map: "user_id")
   @@index([vm_id], map: "vm_id")
+}
+
+model rate_limit_configs {
+  id                     Int       @id @default(autoincrement())
+  endpoint               String    @db.VarChar(255)
+  method                 String    @default("ALL") @db.VarChar(10)
+  max_requests           Int       @default(100)
+  window_seconds         Int       @default(60)
+  block_duration_seconds Int?      @default(300)
+  is_enabled             Boolean?  @default(true)
+  description            String?   @db.Text
+  created_at             DateTime? @default(now()) @db.Timestamp(0)
+  updated_at             DateTime? @default(now()) @db.Timestamp(0)
+  created_by             Int?
+
+  @@unique([endpoint, method], map: "unique_endpoint_method")
+  @@index([is_enabled], map: "idx_enabled")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -2419,6 +3052,45 @@ model snapshot_schedules {
   @@index([vm_id], map: "vm_id")
 }
 
+model ssh_key_cluster_status {
+  id                    Int                                           @id @default(autoincrement())
+  ssh_key_id            Int
+  cluster_id            Int
+  is_configured         Boolean?                                      @default(false)
+  last_tested_at        DateTime?                                     @db.Timestamp(0)
+  last_test_success     Boolean?
+  last_push_at          DateTime?                                     @db.Timestamp(0)
+  push_count            Int?                                          @default(0)
+  auth_method_last_used ssh_key_cluster_status_auth_method_last_used? @default(unknown)
+  last_auth_at          DateTime?                                     @db.Timestamp(0)
+  created_at            DateTime?                                     @default(now()) @db.Timestamp(0)
+  updated_at            DateTime?                                     @default(now()) @db.Timestamp(0)
+  proxmox_clusters      proxmox_clusters                              @relation(fields: [cluster_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "ssh_key_cluster_status_ibfk_1")
+
+  @@unique([ssh_key_id, cluster_id], map: "unique_key_cluster")
+  @@index([cluster_id], map: "idx_cluster")
+}
+
+model ssh_keys {
+  id              Int                @id @default(autoincrement())
+  key_type        ssh_keys_key_type? @default(rsa)
+  key_size        Int?               @default(4096)
+  public_key      String             @db.Text
+  fingerprint     String             @unique(map: "fingerprint") @db.VarChar(255)
+  generated_at    DateTime?          @default(now()) @db.Timestamp(0)
+  expires_at      DateTime?          @db.Timestamp(0)
+  last_rotated_at DateTime?          @db.Timestamp(0)
+  last_used_at    DateTime?          @db.Timestamp(0)
+  rotation_count  Int?               @default(0)
+  status          ssh_keys_status?   @default(active)
+  created_by      Int?
+  notes           String?            @db.Text
+
+  @@index([expires_at], map: "idx_expires_at")
+  @@index([fingerprint], map: "idx_fingerprint")
+  @@index([status], map: "idx_status")
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model sso_login_audit {
   id                 Int                      @id @default(autoincrement())
@@ -2466,6 +3138,36 @@ model storage_pools {
 
   @@unique([cluster_id, name], map: "unique_cluster_storage")
   @@index([enabled], map: "idx_enabled")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model subscription_plans {
+  id                    Int                                @id @default(autoincrement())
+  name                  String                             @db.VarChar(100)
+  description           String?                            @db.Text
+  price                 Decimal                            @db.Decimal(10, 2)
+  currency              String?                            @default("USD") @db.VarChar(10)
+  billing_period        subscription_plans_billing_period? @default(monthly)
+  trial_days            Int?                               @default(0)
+  is_active             Boolean?                           @default(true)
+  features              Json?
+  display_order         Int?                               @default(0)
+  created_at            DateTime?                          @default(now()) @db.Timestamp(0)
+  updated_at            DateTime?                          @default(now()) @db.Timestamp(0)
+  vm_limit              Int?
+  storage_gb_limit      Int?
+  cpu_cores_limit       Int?
+  memory_gb_limit       Int?
+  user_limit            Int?
+  cluster_limit         Int?
+  support_level         subscription_plans_support_level?  @default(email)
+  backup_enabled        Boolean?                           @default(false)
+  snapshot_enabled      Boolean?                           @default(false)
+  api_access_enabled    Boolean?                           @default(false)
+  company_subscriptions company_subscriptions[]
+
+  @@index([display_order], map: "idx_display_order")
+  @@index([is_active], map: "idx_is_active")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -2520,6 +3222,30 @@ model system_settings {
   updated_at    DateTime? @default(now()) @db.Timestamp(0)
 
   @@index([setting_key], map: "idx_setting_key")
+}
+
+model ui_customizations {
+  id                   Int                   @id @default(autoincrement())
+  company_id           Int?
+  url_mapping_id       Int?
+  page_identifier      String                @db.VarChar(100)
+  section_identifier   String?               @db.VarChar(100)
+  custom_text          Json?
+  hidden_components    Json?
+  custom_components    Json?
+  layout_settings      Json?
+  is_active            Boolean?              @default(true)
+  priority             Int?                  @default(0)
+  created_at           DateTime?             @default(now()) @db.Timestamp(0)
+  updated_at           DateTime?             @default(now()) @db.Timestamp(0)
+  companies            companies?            @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "ui_customizations_ibfk_1")
+  company_url_mappings company_url_mappings? @relation(fields: [url_mapping_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "ui_customizations_ibfk_2")
+
+  @@unique([company_id, url_mapping_id, page_identifier, section_identifier], map: "unique_customization")
+  @@index([is_active], map: "idx_active")
+  @@index([page_identifier], map: "idx_page")
+  @@index([priority], map: "idx_priority")
+  @@index([url_mapping_id], map: "url_mapping_id")
 }
 
 model usage_metrics {
@@ -2758,8 +3484,11 @@ model users {
   backup_history                                                      backup_history[]
   backup_restore_jobs                                                 backup_restore_jobs[]
   backup_schedules                                                    backup_schedules[]
+  billing_audit_log                                                   billing_audit_log[]
   bookmarks                                                           bookmarks[]
   bulk_operations_log                                                 bulk_operations_log[]
+  company_payment_methods                                             company_payment_methods[]
+  company_pricing_plans                                               company_pricing_plans[]
   company_quotas                                                      company_quotas[]
   company_sso_config                                                  company_sso_config[]
   customer_portal_sessions                                            customer_portal_sessions[]
@@ -2777,6 +3506,9 @@ model users {
   feedback_replies                                                    feedback_replies[]
   feedback_submissions_feedback_submissions_user_idTousers            feedback_submissions[]     @relation("feedback_submissions_user_idTousers")
   feedback_submissions_feedback_submissions_assigned_toTousers        feedback_submissions[]     @relation("feedback_submissions_assigned_toTousers")
+  help_article_changelog                                              help_article_changelog[]
+  help_article_drafts                                                 help_article_drafts[]
+  help_articles                                                       help_articles[]
   invoices                                                            invoices[]
   ip_reservations_ip_reservations_reserved_byTousers                  ip_reservations[]          @relation("ip_reservations_reserved_byTousers")
   ip_reservations_ip_reservations_created_byTousers                   ip_reservations[]          @relation("ip_reservations_created_byTousers")
@@ -2788,7 +3520,9 @@ model users {
   nat_rules_nat_rules_last_modified_byTousers                         nat_rules[]                @relation("nat_rules_last_modified_byTousers")
   notification_queue                                                  notification_queue[]
   notification_settings                                               notification_settings[]
+  onboarding_registrations                                            onboarding_registrations[]
   opnsense_templates                                                  opnsense_templates[]
+  payment_method_audit                                                payment_method_audit[]
   payments                                                            payments[]
   pricing_assignments                                                 pricing_assignments[]
   quota_approval_requests_quota_approval_requests_requested_byTousers quota_approval_requests[]  @relation("quota_approval_requests_requested_byTousers")
@@ -2823,7 +3557,8 @@ model users {
   vm_tags                                                             vm_tags[]
   vm_template_usage                                                   vm_template_usage[]
   vm_templates                                                        vm_templates[]
-  webhook_deliveries                                                  webhook_deliveries[]
+  webhook_deliveries_old                                              webhook_deliveries_old[]
+  webhooks                                                            webhooks[]
 
   @@index([company_id], map: "idx_company")
   @@index([email], map: "idx_email")
@@ -2850,6 +3585,7 @@ model virtual_machines {
   primary_ip_internal      String?                  @db.VarChar(50)
   primary_ip_external      String?                  @db.VarChar(50)
   status                   virtual_machines_status? @default(unknown)
+  last_activity_at         DateTime?                @db.Timestamp(0)
   template_id              Int?
   ip_address               String?                  @db.VarChar(45)
   created_from_template    Boolean?                 @default(false)
@@ -2890,6 +3626,7 @@ model virtual_machines {
   vm_activity_tracking     vm_activity_tracking?
   vm_auto_shutdown_log     vm_auto_shutdown_log[]
   vm_backup_assignments    vm_backup_assignments[]
+  vm_billing_snapshots     vm_billing_snapshots[]
   vm_daily_summaries       vm_daily_summaries[]
   vm_ip_assignments        vm_ip_assignments[]
   vm_notes                 vm_notes[]
@@ -2902,6 +3639,7 @@ model virtual_machines {
   @@unique([cluster_id, vmid], map: "unique_vm")
   @@index([marked_for_deletion_by], map: "fk_marked_deletion_by")
   @@index([esxi_import_job_id], map: "fk_vm_import_job")
+  @@index([auto_shutdown_enabled, status, last_activity_at], map: "idx_auto_shutdown_active")
   @@index([cluster_id], map: "idx_cluster")
   @@index([company_id], map: "idx_company")
   @@index([company_id, project_id], map: "idx_company_project")
@@ -2955,6 +3693,29 @@ model vm_backup_assignments {
 
   @@unique([vm_id, policy_id], map: "unique_backup")
   @@index([policy_id], map: "policy_id")
+}
+
+model vm_billing_snapshots {
+  id               Int              @id @default(autoincrement())
+  company_id       Int
+  vm_id            Int
+  vm_name          String           @db.VarChar(255)
+  vmid             Int
+  cluster_id       Int
+  snapshot_date    DateTime         @db.Date
+  cpu_cores        Int
+  memory_mb        Int
+  storage_gb       Decimal          @db.Decimal(10, 2)
+  uptime_hours     Decimal          @default(0.00) @db.Decimal(10, 2)
+  status           String           @db.VarChar(20)
+  created_at       DateTime?        @default(now()) @db.Timestamp(0)
+  companies        companies        @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "vm_billing_snapshots_ibfk_1")
+  virtual_machines virtual_machines @relation(fields: [vm_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "vm_billing_snapshots_ibfk_2")
+  proxmox_clusters proxmox_clusters @relation(fields: [cluster_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "vm_billing_snapshots_ibfk_3")
+
+  @@unique([vm_id, snapshot_date], map: "unique_vm_date")
+  @@index([cluster_id], map: "cluster_id")
+  @@index([company_id, snapshot_date], map: "idx_company_date")
 }
 
 model vm_daily_summaries {
@@ -3299,100 +4060,150 @@ model vm_templates {
   @@index([is_public], map: "idx_public")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model webhook_deliveries {
-  id                Int                        @id @default(autoincrement())
+  id                   Int                                 @id @default(autoincrement())
+  webhook_id           Int
+  event_type           String                              @db.VarChar(100)
+  payload              String                              @db.LongText
+  response_status_code Int?
+  response_body        String?                             @db.Text
+  delivery_status      webhook_deliveries_delivery_status? @default(pending)
+  attempts             Int?                                @default(0)
+  error_message        String?                             @db.Text
+  delivered_at         DateTime?                           @db.Timestamp(0)
+  webhooks             webhooks                            @relation(fields: [webhook_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "webhook_deliveries_ibfk_1")
+
+  @@index([delivered_at], map: "idx_delivered_at")
+  @@index([delivery_status], map: "idx_status")
+  @@index([webhook_id], map: "idx_webhook")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model webhook_deliveries_old {
+  id                Int                            @id @default(autoincrement())
   user_id           Int
-  notification_type String                     @db.VarChar(50)
-  webhook_url       String                     @db.VarChar(500)
-  payload           String                     @db.LongText
+  notification_type String                         @db.VarChar(50)
+  webhook_url       String                         @db.VarChar(500)
+  payload           String                         @db.LongText
   status_code       Int?
-  response_body     String?                    @db.Text
-  status            webhook_deliveries_status? @default(pending)
-  attempts          Int?                       @default(0)
-  delivered_at      DateTime?                  @db.Timestamp(0)
-  error_message     String?                    @db.Text
-  created_at        DateTime?                  @default(now()) @db.Timestamp(0)
-  users             users                      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "webhook_deliveries_ibfk_1")
+  response_body     String?                        @db.Text
+  status            webhook_deliveries_old_status? @default(pending)
+  attempts          Int?                           @default(0)
+  delivered_at      DateTime?                      @db.Timestamp(0)
+  error_message     String?                        @db.Text
+  created_at        DateTime?                      @default(now()) @db.Timestamp(0)
+  users             users                          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "webhook_deliveries_old_ibfk_1")
 
   @@index([status, created_at], map: "idx_status")
   @@index([user_id], map: "user_id")
 }
 
-model bulk_cluster_operations {
-  id               Int                                    @id @default(autoincrement())
-  operation_type   bulk_cluster_operations_operation_type
-  cluster_ids      Json
-  total_clusters   Int
-  success_count    Int?                                   @default(0)
-  failure_count    Int?                                   @default(0)
-  results          Json?
-  started_at       DateTime?                              @default(now()) @db.Timestamp(0)
-  completed_at     DateTime?                              @db.Timestamp(0)
-  duration_seconds Int?
-  initiated_by     Int
-  status           bulk_cluster_operations_status?        @default(pending)
+model webhooks {
+  id                 Int                  @id @default(autoincrement())
+  name               String               @db.VarChar(255)
+  url                String               @db.VarChar(500)
+  events             Json
+  secret             String?              @db.VarChar(500)
+  custom_headers     Json?
+  timeout_seconds    Int?                 @default(30)
+  is_active          Boolean?             @default(true)
+  company_id         Int?
+  created_by         Int
+  created_at         DateTime?            @default(now()) @db.Timestamp(0)
+  updated_at         DateTime?            @default(now()) @db.Timestamp(0)
+  webhook_deliveries webhook_deliveries[]
+  companies          companies?           @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "webhooks_ibfk_1")
+  users              users                @relation(fields: [created_by], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "webhooks_ibfk_2")
 
-  @@index([initiated_by], map: "idx_initiated_by")
+  @@index([created_by], map: "created_by")
+  @@index([is_active], map: "idx_active")
+  @@index([company_id], map: "idx_company")
+}
+
+model whitelabel_assets {
+  id                   Int                          @id @default(autoincrement())
+  company_id           Int?
+  url_mapping_id       Int?
+  asset_type           whitelabel_assets_asset_type
+  asset_name           String                       @db.VarChar(255)
+  asset_slug           String                       @db.VarChar(255)
+  file_path            String?                      @db.VarChar(500)
+  file_url             String?                      @db.VarChar(500)
+  file_size            Int?
+  mime_type            String?                      @db.VarChar(100)
+  file_hash            String?                      @db.VarChar(64)
+  width                Int?
+  height               Int?
+  alt_text             String?                      @db.VarChar(255)
+  description          String?                      @db.Text
+  is_active            Boolean?                     @default(true)
+  usage_count          Int?                         @default(0)
+  last_used_at         DateTime?                    @db.Timestamp(0)
+  created_at           DateTime?                    @default(now()) @db.Timestamp(0)
+  updated_at           DateTime?                    @default(now()) @db.Timestamp(0)
+  uploaded_by          Int?
+  companies            companies?                   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "whitelabel_assets_ibfk_1")
+  company_url_mappings company_url_mappings?        @relation(fields: [url_mapping_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "whitelabel_assets_ibfk_2")
+
+  @@unique([company_id, url_mapping_id, asset_slug], map: "unique_asset")
+  @@index([is_active], map: "idx_active")
+  @@index([asset_type], map: "idx_asset_type")
+  @@index([company_id], map: "idx_company")
+  @@index([url_mapping_id], map: "idx_url_mapping")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model whitelabel_settings {
+  id                          Int                                  @id @default(autoincrement())
+  company_id                  Int                                  @unique(map: "unique_company")
+  feature_flags               Json?
+  smtp_host                   String?                              @db.VarChar(255)
+  smtp_port                   Int?
+  smtp_username               String?                              @db.VarChar(255)
+  smtp_password_encrypted     String?                              @db.Text
+  smtp_from_email             String?                              @db.VarChar(255)
+  smtp_from_name              String?                              @default("Support") @db.VarChar(255)
+  smtp_encryption             whitelabel_settings_smtp_encryption? @default(tls)
+  twilio_account_sid          String?                              @db.VarChar(255)
+  twilio_auth_token_encrypted String?                              @db.Text
+  twilio_phone_number         String?                              @db.VarChar(50)
+  stripe_publishable_key      String?                              @db.VarChar(255)
+  stripe_secret_key_encrypted String?                              @db.Text
+  api_webhook_url             String?                              @db.VarChar(500)
+  api_webhook_secret          String?                              @db.VarChar(255)
+  widget_allowed_origins      String?                              @db.Text
+  created_at                  DateTime?                            @default(now()) @db.Timestamp(0)
+  updated_at                  DateTime?                            @default(now()) @db.Timestamp(0)
+  companies                   companies                            @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "whitelabel_settings_ibfk_1")
+}
+
+model iso_sync_jobs {
+  id                 String                @id @db.VarChar(100)
+  iso_id             Int
+  source_cluster_id  Int
+  target_cluster_ids Json
+  status             iso_sync_jobs_status? @default(pending)
+  progress           Int?                  @default(0)
+  results            Json?
+  error              String?               @db.Text
+  created_at         DateTime?             @default(now()) @db.Timestamp(0)
+  updated_at         DateTime?             @default(now()) @db.Timestamp(0)
+  completed_at       DateTime?             @db.Timestamp(0)
+  isos               isos                  @relation(fields: [iso_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "iso_sync_jobs_ibfk_1")
+  proxmox_clusters   proxmox_clusters      @relation(fields: [source_cluster_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "iso_sync_jobs_ibfk_2")
+
+  @@index([created_at], map: "idx_created_at")
   @@index([status], map: "idx_status")
+  @@index([iso_id], map: "iso_id")
+  @@index([source_cluster_id], map: "source_cluster_id")
 }
 
-model nat_deployment_metrics {
-  id                     Int                                    @id @default(autoincrement())
-  nat_rule_id            Int?
-  cluster_id             Int
-  deployment_type        nat_deployment_metrics_deployment_type
-  auth_method            nat_deployment_metrics_auth_method
-  deployment_duration_ms Int
-  success                Boolean
-  error_message          String?                                @db.Text
-  commands_executed      Int?                                   @default(1)
-  deployed_at            DateTime?                              @default(now()) @db.Timestamp(0)
-  deployed_by            Int?
-  proxmox_clusters       proxmox_clusters                       @relation(fields: [cluster_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "nat_deployment_metrics_ibfk_1")
-
-  @@index([auth_method], map: "idx_auth_method")
-  @@index([cluster_id], map: "idx_cluster")
-  @@index([deployed_at], map: "idx_deployed_at")
-}
-
-model ssh_key_cluster_status {
-  id                    Int                                           @id @default(autoincrement())
-  ssh_key_id            Int
-  cluster_id            Int
-  is_configured         Boolean?                                      @default(false)
-  last_tested_at        DateTime?                                     @db.Timestamp(0)
-  last_test_success     Boolean?
-  last_push_at          DateTime?                                     @db.Timestamp(0)
-  push_count            Int?                                          @default(0)
-  auth_method_last_used ssh_key_cluster_status_auth_method_last_used? @default(unknown)
-  last_auth_at          DateTime?                                     @db.Timestamp(0)
-  created_at            DateTime?                                     @default(now()) @db.Timestamp(0)
-  updated_at            DateTime?                                     @default(now()) @db.Timestamp(0)
-  proxmox_clusters      proxmox_clusters                              @relation(fields: [cluster_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "ssh_key_cluster_status_ibfk_1")
-
-  @@unique([ssh_key_id, cluster_id], map: "unique_key_cluster")
-  @@index([cluster_id], map: "idx_cluster")
-}
-
-model ssh_keys {
-  id              Int                @id @default(autoincrement())
-  key_type        ssh_keys_key_type? @default(rsa)
-  key_size        Int?               @default(4096)
-  public_key      String             @db.Text
-  fingerprint     String             @unique(map: "fingerprint") @db.VarChar(255)
-  generated_at    DateTime?          @default(now()) @db.Timestamp(0)
-  expires_at      DateTime?          @db.Timestamp(0)
-  last_rotated_at DateTime?          @db.Timestamp(0)
-  last_used_at    DateTime?          @db.Timestamp(0)
-  rotation_count  Int?               @default(0)
-  status          ssh_keys_status?   @default(active)
-  created_by      Int?
-  notes           String?            @db.Text
-
-  @@index([expires_at], map: "idx_expires_at")
-  @@index([fingerprint], map: "idx_fingerprint")
-  @@index([status], map: "idx_status")
+enum bulk_cluster_operations_operation_type {
+  test_connection
+  restart_service
+  update_config
+  push_ssh_keys
+  deploy_agent
 }
 
 enum bulk_operations_log_operation_type {
@@ -3414,10 +4225,28 @@ enum export_history_export_type {
   custom
 }
 
+enum ssh_keys_key_type {
+  rsa
+  ed25519
+  ecdsa
+}
+
 enum bulk_operations_log_entity_type {
   vm
   container
   cluster
+}
+
+enum company_payment_methods_payment_type {
+  stripe
+  paypal
+  bank_transfer
+  credit_card
+  wire_transfer
+  check
+  cash
+  crypto
+  manual
 }
 
 enum company_sso_config_provider {
@@ -3456,6 +4285,17 @@ enum export_history_file_format {
   xlsx
   pdf
   json
+}
+
+enum global_settings_setting_category {
+  branding
+  email
+  ui
+  features
+  security
+  integrations
+  limits
+  custom
 }
 
 enum invoice_line_items_line_type {
@@ -3531,12 +4371,39 @@ enum audit_export_jobs_export_format {
   pdf
 }
 
+enum billing_audit_log_action {
+  invoice_created
+  invoice_sent
+  invoice_paid
+  invoice_overdue
+  invoice_cancelled
+  payment_received
+  payment_failed
+  pricing_changed
+  billing_suspended
+  billing_resumed
+}
+
+enum companies_billing_model {
+  fixed_per_vm
+  resource_based
+  hybrid
+}
+
 enum company_quotas_quota_type {
   vm_count
   cpu_cores
   memory_gb
   storage_gb
   network_bandwidth_mbps
+}
+
+enum company_subscriptions_status {
+  active
+  trial
+  expired
+  cancelled
+  suspended
 }
 
 enum dr_config_templates_template_type {
@@ -3550,6 +4417,21 @@ enum dr_failover_events_trigger_type {
   manual
   automatic
   scheduled_test
+}
+
+enum email_templates_template_type {
+  verification
+  welcome
+  password_reset
+  vm_created
+  vm_deleted
+  invoice
+  payment_received
+  payment_failed
+  subscription_created
+  subscription_cancelled
+  support_ticket
+  custom
 }
 
 enum feedback_submissions_type {
@@ -3571,6 +4453,13 @@ enum nat_deployment_log_status {
   failed
 }
 
+enum nat_deployment_metrics_deployment_type {
+  create
+  update
+  delete
+  test
+}
+
 enum nat_firewall_rules_action {
   accept
   drop
@@ -3581,6 +4470,17 @@ enum network_edges_edge_type {
   firewall
   router
   vpn
+}
+
+enum payment_method_audit_action {
+  added
+  updated
+  removed
+  set_primary
+  verified
+  failed_verification
+  charged
+  charge_failed
 }
 
 enum pricing_tiers_tier_type {
@@ -3659,6 +4559,19 @@ enum vm_schedules_schedule_type {
   cron
 }
 
+enum whitelabel_assets_asset_type {
+  logo
+  favicon
+  login_background
+  email_header
+  email_footer
+  banner
+  icon
+  custom_file
+  css
+  javascript
+}
+
 enum alert_rules_rule_type {
   threshold
   anomaly
@@ -3672,6 +4585,19 @@ enum api_scopes_min_role {
   super_admin
 }
 
+enum help_article_changelog_action {
+  created
+  updated
+  published
+  unpublished
+  deleted
+}
+
+enum help_faqs_answer_type {
+  markdown
+  html
+}
+
 enum monitoring_metrics_metric_type {
   cpu
   memory
@@ -3681,10 +4607,23 @@ enum monitoring_metrics_metric_type {
   uptime
 }
 
+enum nat_deployment_metrics_auth_method {
+  ssh_key
+  password
+}
+
 enum nat_rules_nat_type {
   port_forward
   proxmox_nat
   opnsense
+}
+
+enum onboarding_steps_status {
+  pending
+  in_progress
+  completed
+  skipped
+  failed
 }
 
 enum resource_alert_history_alert_type {
@@ -3785,6 +4724,12 @@ enum sso_login_audit_provider {
   generic
 }
 
+enum subscription_plans_billing_period {
+  monthly
+  quarterly
+  yearly
+}
+
 enum alert_history_severity {
   info
   warning
@@ -3850,6 +4795,11 @@ enum dr_vm_policies_replication_priority {
   low
 }
 
+enum help_articles_content_type {
+  markdown
+  html
+}
+
 enum opnsense_firewall_rules_action {
   pass
   block
@@ -3866,6 +4816,12 @@ enum vm_notes_history_change_type {
   created
   updated
   deleted
+}
+
+enum webhook_deliveries_delivery_status {
+  success
+  failed
+  pending
 }
 
 enum articles_target_role {
@@ -3920,6 +4876,14 @@ enum notification_queue_priority {
   critical
 }
 
+enum onboarding_registrations_company_size {
+  small      @map("1-10")
+  medium     @map("11-50")
+  large      @map("51-200")
+  xlarge     @map("201-500")
+  enterprise @map("500+")
+}
+
 enum quota_approval_requests_status {
   pending
   approved
@@ -3945,7 +4909,7 @@ enum vm_templates_os_type {
   other
 }
 
-enum webhook_deliveries_status {
+enum webhook_deliveries_old_status {
   pending
   delivered
   failed
@@ -3978,12 +4942,6 @@ enum backup_restore_jobs_status {
   failed
 }
 
-enum companies_status {
-  active
-  suspended
-  deleted
-}
-
 enum dr_test_results_status {
   running
   passed
@@ -4004,6 +4962,20 @@ enum feedback_submissions_status {
   resolved
   closed
   wont_fix
+}
+
+enum global_settings_setting_type {
+  string
+  integer
+  float
+  boolean
+  json
+  text
+}
+
+enum help_article_drafts_content_type {
+  markdown
+  html
 }
 
 enum nat_firewall_rules_protocol {
@@ -4048,6 +5020,12 @@ enum replication_jobs_status {
   syncing
 }
 
+enum ssh_key_cluster_status_auth_method_last_used {
+  ssh_key
+  password
+  unknown
+}
+
 enum support_tickets_status {
   open
   in_progress
@@ -4077,6 +5055,19 @@ enum dr_zfs_replication_jobs_compression {
   zstd
 }
 
+enum help_article_drafts_visibility {
+  global
+  company_specific
+  company_type
+  role_specific
+}
+
+enum help_articles_difficulty {
+  beginner
+  intermediate
+  advanced
+}
+
 enum ip_reservations_status {
   active
   expired
@@ -4096,6 +5087,12 @@ enum proxmox_clusters_status {
   offline
 }
 
+enum whitelabel_settings_smtp_encryption {
+  none
+  ssl
+  tls
+}
+
 enum alert_rules_target_type {
   vm
   cluster
@@ -4109,6 +5106,12 @@ enum billing_records_status {
   paid
 }
 
+enum companies_status {
+  active
+  suspended
+  deleted
+}
+
 enum company_backup_assignments_backup_type {
   full
   incremental
@@ -4120,6 +5123,12 @@ enum company_billing_payment_method {
   stripe
   paypal
   bank_transfer
+  credit_card
+  wire_transfer
+  check
+  cash
+  crypto
+  other
 }
 
 enum dr_automation_logs_triggered_by {
@@ -4151,6 +5160,13 @@ enum nat_rules_protocol {
   icmp
 }
 
+enum ssh_keys_status {
+  active
+  expired
+  rotated
+  revoked
+}
+
 enum alert_history_status {
   triggered
   acknowledged
@@ -4163,6 +5179,13 @@ enum backup_history_compression {
   lzo
   gzip
   zstd
+}
+
+enum bulk_cluster_operations_status {
+  pending
+  in_progress
+  completed
+  failed
 }
 
 enum company_sso_config_default_role {
@@ -4182,6 +5205,12 @@ enum opnsense_firewall_rules_destination_type {
   any
   network
   address
+}
+
+enum pricing_plans_billing_cycle {
+  monthly
+  quarterly
+  annual
 }
 
 enum users_role {
@@ -4226,18 +5255,23 @@ enum dr_failover_events_status {
   rolled_back
 }
 
+enum help_faqs_visibility {
+  global
+  company_specific
+  company_type
+  role_specific
+}
+
 enum backup_schedules_mode {
   snapshot
   suspend
   stop
 }
 
-enum company_url_mappings_ssl_status {
-  pending
-  generating
-  active
-  failed
-  expired
+enum help_article_drafts_difficulty {
+  beginner
+  intermediate
+  advanced
 }
 
 enum nat_rules_nat_mode {
@@ -4263,12 +5297,27 @@ enum virtual_machines_status {
   unknown
 }
 
+enum company_url_mappings_ssl_status {
+  pending
+  generating
+  active
+  failed
+  expired
+}
+
 enum dr_replicated_vms_sync_status {
   idle
   syncing
   success
   failed
   paused
+}
+
+enum onboarding_registrations_status {
+  pending
+  approved
+  rejected
+  completed
 }
 
 enum users_status {
@@ -4282,6 +5331,13 @@ enum dr_test_schedules_last_run_status {
   failed
   partial
   cancelled
+}
+
+enum help_articles_visibility {
+  global
+  company_specific
+  company_type
+  role_specific
 }
 
 enum users_auth_type {
@@ -4320,11 +5376,31 @@ enum backup_history_verification_status {
   failed
 }
 
+enum company_payment_methods_bank_account_type {
+  checking
+  savings
+  business
+}
+
+enum subscription_plans_support_level {
+  none
+  email
+  priority
+  twentyfour_seven @map("24/7")
+}
+
 enum dr_zfs_replication_jobs_sync_status {
   idle
   syncing
   success
   failed
+}
+
+enum onboarding_registrations_created_via {
+  api
+  widget
+  admin
+  portal
 }
 
 enum company_sso_config_last_test_status {
@@ -4353,6 +5429,12 @@ enum dr_cluster_pairs_managed_by {
   company_admin
 }
 
+enum company_billing_billing_cycle_override {
+  monthly
+  quarterly
+  annual
+}
+
 enum companies_sso_default_role {
   company_admin
   user
@@ -4373,48 +5455,22 @@ enum opnsense_instances_deployment_status {
   stopped
 }
 
-enum bulk_cluster_operations_operation_type {
-  test_connection
-  restart_service
-  update_config
-  push_ssh_keys
-  deploy_agent
+enum company_payment_methods_verification_status {
+  pending
+  verified
+  failed
 }
 
-enum ssh_keys_key_type {
-  rsa
-  ed25519
-  ecdsa
+enum company_url_mappings_white_label_level {
+  basic
+  standard
+  premium
+  enterprise
 }
 
-enum nat_deployment_metrics_deployment_type {
-  create
-  update
-  delete
-  test
-}
-
-enum ssh_keys_status {
-  active
-  expired
-  rotated
-  revoked
-}
-
-enum bulk_cluster_operations_status {
+enum iso_sync_jobs_status {
   pending
   in_progress
   completed
   failed
-}
-
-enum nat_deployment_metrics_auth_method {
-  ssh_key
-  password
-}
-
-enum ssh_key_cluster_status_auth_method_last_used {
-  ssh_key
-  password
-  unknown
 }

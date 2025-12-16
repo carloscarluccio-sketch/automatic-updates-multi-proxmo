@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proxmox Onboarding Widget Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .header p {
+            color: #666;
+            font-size: 18px;
+        }
+        .widget-container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 4px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #856404;
+        }
+        .instructions code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #c7254e;
+        }
+        .code-example {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 20px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        .code-example pre {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Proxmox Multi-Tenant Platform</h1>
+        <p>Registration Widget Integration Example</p>
+    </div>
+
+    <div class="widget-container">
+        <div class="instructions">
+            <h3>⚠️ Configuration Required</h3>
+            <p>Before using this widget, you must:</p>
+            <ol>
+                <li>Generate an API token with <code>onboarding:*</code> scope</li>
+                <li>Replace <code>YOUR_API_TOKEN_HERE</code> in the code below</li>
+                <li>Update the <code>apiUrl</code> to point to your backend</li>
+            </ol>
+        </div>
+
+        <!-- Widget will be rendered here -->
+        <div id="proxmox-onboarding"></div>
+    </div>
+
+    <div class="widget-container" style="margin-top: 40px;">
+        <h2>Integration Code</h2>
+        <p>Copy this code to your website to embed the registration form:</p>
+
+        <div class="code-example">
+            <pre>&lt;!-- Step 1: Add container div --&gt;
+&lt;div id="proxmox-onboarding"&gt;&lt;/div&gt;
+
+&lt;!-- Step 2: Load widget script --&gt;
+&lt;script src="https://your-domain.com/widget/proxmox-onboarding-widget.js"&gt;&lt;/script&gt;
+
+&lt;!-- Step 3: Initialize widget --&gt;
+&lt;script&gt;
+  ProxmoxOnboarding.init({
+    // Required: Your API token (with onboarding:* scope)
+    apiToken: 'pmt_live_xxxxxxxxxx',
+
+    // Required: Your API endpoint
+    apiUrl: 'https://your-api.com/api/public/onboarding',
+
+    // Optional: Container ID (default: 'proxmox-onboarding')
+    containerId: 'proxmox-onboarding',
+
+    // Optional: Custom theme
+    theme: {
+      primaryColor: '#0066cc',
+      fontFamily: 'Arial, sans-serif'
+    },
+
+    // Optional: Show plan selection step (default: true)
+    showPlans: true,
+
+    // Optional: UTM tracking parameters
+    utm: {
+      utm_source: 'website',
+      utm_medium: 'widget',
+      utm_campaign: 'spring_2025'
+    },
+
+    // Optional: Success callback
+    onSuccess: function(data) {
+      console.log('Registration successful!', data);
+      // Track conversion, show thank you page, etc.
+    },
+
+    // Optional: Error callback
+    onError: function(error) {
+      console.error('Registration error:', error);
+      // Log error, show support contact, etc.
+    }
+  });
+&lt;/script&gt;</pre>
+        </div>
+
+        <h3>Customization Options</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f8f9fa; text-align: left;">
+                    <th style="padding: 10px; border: 1px solid #dee2e6;">Option</th>
+                    <th style="padding: 10px; border: 1px solid #dee2e6;">Type</th>
+                    <th style="padding: 10px; border: 1px solid #dee2e6;">Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>apiToken</code></td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">String</td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">Required. Your API token with onboarding permissions</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>apiUrl</code></td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">String</td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">Required. Your API endpoint base URL</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>containerId</code></td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">String</td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">Optional. ID of container div (default: 'proxmox-onboarding')</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>theme.primaryColor</code></td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">String</td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">Optional. Primary color for buttons and accents</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>theme.fontFamily</code></td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">String</td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">Optional. Font family for widget text</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>showPlans</code></td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">Boolean</td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">Optional. Show plan selection step (default: true)</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>utm</code></td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">Object</td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">Optional. UTM tracking parameters (source, medium, campaign)</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>onSuccess</code></td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">Function</td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">Optional. Callback when registration succeeds</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><code>onError</code></td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">Function</td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">Optional. Callback when registration fails</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Load the widget -->
+    <script src="proxmox-onboarding-widget.js"></script>
+
+    <!-- Initialize widget -->
+    <script>
+        ProxmoxOnboarding.init({
+            apiToken: 'YOUR_API_TOKEN_HERE', // ⚠️ Replace with your actual API token
+            apiUrl: 'http://192.168.142.237:3000/api/public/onboarding', // Update to your backend
+            containerId: 'proxmox-onboarding',
+            theme: {
+                primaryColor: '#0066cc',
+                fontFamily: 'Arial, sans-serif'
+            },
+            showPlans: true,
+            utm: {
+                utm_source: 'example_page',
+                utm_medium: 'widget',
+                utm_campaign: 'demo'
+            },
+            onSuccess: function(data) {
+                console.log('✅ Registration successful!', data);
+                alert('Thank you for registering! Check your email for verification.');
+            },
+            onError: function(error) {
+                console.error('❌ Registration error:', error);
+                alert('Registration failed: ' + error);
+            }
+        });
+    </script>
+</body>
+</html>

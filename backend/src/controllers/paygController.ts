@@ -6,6 +6,16 @@ import logger from '../utils/logger';
 import { Decimal } from '@prisma/client/runtime/library';
 
 /**
+ * Helper to convert BigInt values to strings for JSON serialization
+ */
+function serializeBigInt(obj: any): any {
+  return JSON.parse(JSON.stringify(obj, (_key, value) =>
+    typeof value === 'bigint' ? value.toString() : value
+  ));
+}
+
+
+/**
  * Get current month usage summary for a company
  */
 export const getCurrentUsage = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -152,7 +162,7 @@ export const getVMUsageBreakdown = async (req: AuthRequest, res: Response): Prom
 
     res.json({
       success: true,
-      data: vmUsage
+      data: serializeBigInt(vmUsage)
     });
   } catch (error: any) {
     logger.error('Get VM usage breakdown error:', error);
@@ -204,7 +214,7 @@ export const getDailyCostTrend = async (req: AuthRequest, res: Response): Promis
 
     res.json({
       success: true,
-      data: dailyCosts
+      data: serializeBigInt(dailyCosts)
     });
   } catch (error: any) {
     logger.error('Get daily cost trend error:', error);
@@ -405,7 +415,7 @@ export const getProjectCosts = async (req: AuthRequest, res: Response): Promise<
 
     res.json({
       success: true,
-      data: projectCosts
+      data: serializeBigInt(projectCosts)
     });
   } catch (error: any) {
     logger.error('Get project costs error:', error);

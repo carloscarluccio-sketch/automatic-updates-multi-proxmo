@@ -1,367 +1,434 @@
+/**
+ * Billing Controller
+ * Handles all billing-related API endpoints
+ */
+
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth';
 import prisma from '../config/database';
 import logger from '../utils/logger';
+import {
+  createDailyVMSnapshots,
+  calculateMonthlyBill,
+  generateInvoice,
+  generateMonthlyInvoices,
+  getVMCost
+} from '../services/billingCalculationService';
 
 /**
- * Get pricing for a specific resource type with hierarchical lookup
- * Priority: project-specific > company-specific > default
+ * GET /api/billing/estimate
+ * Get current month cost estimate for authenticated user's company
  */
-async function getPricingForResource(
-  tierType: string,
-  companyId: number,
-  projectId?: number | null
-): Promise<number> {
-  // Try to find pricing with priority order
-  const pricing = await prisma.pricing_tiers.findFirst({
-    where: {
-      tier_type: tierType as any,
-      active: true,
-      OR: [
-        // Project-specific pricing (highest priority)
-        ...(projectId ? [{ project_id: projectId }] : []),
-        // Company-specific pricing
-        { company_id: companyId, project_id: null },
-        // Default pricing (lowest priority)
-        { company_id: null, project_id: null, is_default: true }
-      ]
-    },
-    orderBy: {
-      priority: 'desc' // Higher priority first
-    }
-  });
-
-  return pricing ? Number(pricing.unit_price) : 0;
-}
-
-/**
- * Get billing overview for company with database-driven pricing
- */
-export const getBillingOverview = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getBillingEstimate = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { role, company_id } = req.user!;
-    const { companyId, projectId } = req.query;
+    const userId = req.user!.id;
 
-    let targetCompanyId: number | null = null;
-    let targetProjectId: number | null = projectId ? Number(projectId) : null;
+    // Get user's company
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+      select: { company_id: true, role: true }
+    });
 
-    if (role === 'super_admin') {
-      targetCompanyId = companyId ? Number(companyId) : null;
-    } else {
-      targetCompanyId = company_id;
-    }
-
-    if (!targetCompanyId) {
-      res.status(400).json({ success: false, message: 'Company ID is required' });
+    if (!user || !user.company_id) {
+      res.status(400).json({ success: false, message: 'User not associated with a company' });
       return;
     }
 
-    // Get VM count and resource totals
-    const vmWhere: any = { company_id: targetCompanyId };
-    if (targetProjectId) {
-      vmWhere.project_id = targetProjectId;
+    const companyId = user.role === 'super_admin' && req.query.company_id
+      ? parseInt(req.query.company_id as string)
+      : user.company_id;
+
+    // Calculate current month bill
+    const currentMonth = new Date();
+    const estimate = await calculateMonthlyBill(companyId, currentMonth);
+
+    if (!estimate) {
+      res.status(404).json({
+        success: false,
+        message: 'No billing estimate available. Company may not have a pricing plan assigned.'
+      });
+      return;
     }
 
+    res.json({ success: true, data: estimate });
+  } catch (error) {
+    logger.error('Error getting billing estimate:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+/**
+ * GET /api/billing/vm-costs
+ * Get per-VM cost breakdown for current month
+ */
+export const getVMCosts = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+      select: { company_id: true, role: true }
+    });
+
+    if (!user || !user.company_id) {
+      res.status(400).json({ success: false, message: 'User not associated with a company' });
+      return;
+    }
+
+    const companyId = user.role === 'super_admin' && req.query.company_id
+      ? parseInt(req.query.company_id as string)
+      : user.company_id;
+
+    // Get billing info
+    const billing = await prisma.company_billing.findUnique({
+      where: { company_id: companyId }
+    });
+
+    if (!billing || !billing.current_pricing_plan_id) {
+      res.status(404).json({
+        success: false,
+        message: 'No pricing plan assigned to company'
+      });
+      return;
+    }
+
+    // Get all VMs
     const vms = await prisma.virtual_machines.findMany({
-      where: vmWhere,
-      select: {
-        id: true,
-        cpu_cores: true,
-        memory_mb: true,
-        storage_gb: true,
-        status: true,
-        project_id: true
-      }
-    });
-
-    const totalVMs = vms.length;
-    const runningVMs = vms.filter(vm => vm.status === 'running').length;
-    const totalCPU = vms.reduce((sum, vm) => sum + (vm.cpu_cores || 0), 0);
-    const totalMemoryGB = vms.reduce((sum, vm) => sum + (vm.memory_mb || 0) / 1024, 0);
-    const totalStorageGB = vms.reduce((sum, vm) => sum + (vm.storage_gb || 0), 0);
-
-    // Get IP range count
-    const ipRangesWhere: any = { company_id: targetCompanyId };
-    const ipRanges = await prisma.ip_ranges.findMany({
-      where: ipRangesWhere
-    });
-
-    // Get OPNsense instances count
-    const opnsenseWhere: any = { company_id: targetCompanyId };
-    if (targetProjectId) {
-      opnsenseWhere.project_id = targetProjectId;
-    }
-    const opnsenseInstances = await prisma.opnsense_instances.findMany({
-      where: opnsenseWhere
-    });
-
-    // Get pricing from database (hierarchical: project > company > default)
-    const pricing = {
-      vm_base: await getPricingForResource('vm_base', targetCompanyId, targetProjectId),
-      cpu_core: await getPricingForResource('cpu_core', targetCompanyId, targetProjectId),
-      memory_gb: await getPricingForResource('memory_gb', targetCompanyId, targetProjectId),
-      storage_gb: await getPricingForResource('storage_gb', targetCompanyId, targetProjectId),
-      ip_range: await getPricingForResource('ip_range', targetCompanyId, targetProjectId),
-      opnsense_instance: await getPricingForResource('opnsense_instance', targetCompanyId, targetProjectId),
-      bandwidth_gb: await getPricingForResource('bandwidth_gb', targetCompanyId, targetProjectId),
-      backup_gb: await getPricingForResource('backup_gb', targetCompanyId, targetProjectId),
-      snapshot: await getPricingForResource('snapshot', targetCompanyId, targetProjectId)
-    };
-
-    // Calculate monthly costs using database pricing
-    const monthlyCost = {
-      vms: totalVMs * pricing.vm_base,
-      cpu: totalCPU * pricing.cpu_core,
-      memory: totalMemoryGB * pricing.memory_gb,
-      storage: totalStorageGB * pricing.storage_gb,
-      ip_ranges: ipRanges.length * pricing.ip_range,
-      opnsense: opnsenseInstances.length * pricing.opnsense_instance
-    };
-
-    const totalMonthlyCost = Object.values(monthlyCost).reduce((sum, cost) => sum + cost, 0);
-
-    // Get pricing tier details for transparency
-    const pricingTiers = await prisma.pricing_tiers.findMany({
       where: {
-        active: true,
-        OR: [
-          { project_id: targetProjectId },
-          { company_id: targetCompanyId, project_id: null },
-          { company_id: null, project_id: null, is_default: true }
-        ]
+        company_id: companyId,
+        status: { not: 'deleted' }
       },
       select: {
         id: true,
         name: true,
-        tier_type: true,
-        unit_price: true,
-        currency: true,
-        billing_cycle: true,
-        priority: true,
-        is_default: true,
-        company_id: true,
-        project_id: true
-      },
-      orderBy: [
-        { tier_type: 'asc' },
-        { priority: 'desc' }
-      ]
-    });
-
-    res.json({
-      success: true,
-      data: {
-        company_id: targetCompanyId,
-        project_id: targetProjectId,
-        resources: {
-          total_vms: totalVMs,
-          running_vms: runningVMs,
-          total_cpu_cores: totalCPU,
-          total_memory_gb: Math.round(totalMemoryGB * 100) / 100,
-          total_storage_gb: totalStorageGB,
-          ip_ranges: ipRanges.length,
-          opnsense_instances: opnsenseInstances.length
-        },
-        costs: {
-          breakdown: monthlyCost,
-          total_monthly: Math.round(totalMonthlyCost * 100) / 100,
-          currency: 'USD'
-        },
-        pricing,
-        pricing_tiers: pricingTiers
+        vmid: true
       }
     });
-  } catch (error: any) {
-    logger.error('Get billing overview error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch billing overview',
-      error: error.message
-    });
+
+    // Calculate cost for each VM
+    const currentMonth = new Date();
+    const vmCosts = [];
+
+    for (const vm of vms) {
+      const cost = await getVMCost(vm.id, billing.current_pricing_plan_id, currentMonth);
+      if (cost) {
+        vmCosts.push(cost);
+      }
+    }
+
+    res.json({ success: true, data: vmCosts });
+  } catch (error) {
+    logger.error('Error getting VM costs:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
 /**
- * Get resource usage history
+ * GET /api/billing/history
+ * Get invoice history for company
  */
-export const getUsageHistory = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getBillingHistory = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { role, company_id } = req.user!;
-    const { companyId, startDate, endDate, limit = 30 } = req.query;
+    const userId = req.user!.id;
 
-    let targetCompanyId: number | null = null;
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+      select: { company_id: true, role: true }
+    });
 
-    if (role === 'super_admin') {
-      targetCompanyId = companyId ? Number(companyId) : null;
-    } else {
-      targetCompanyId = company_id;
-    }
-
-    if (!targetCompanyId) {
-      res.status(400).json({ success: false, message: 'Company ID is required' });
+    if (!user || !user.company_id) {
+      res.status(400).json({ success: false, message: 'User not associated with a company' });
       return;
     }
 
-    // Build date filter
-    const where: any = { company_id: targetCompanyId };
-    if (startDate || endDate) {
-      where.created_at = {};
-      if (startDate) where.created_at.gte = new Date(startDate as string);
-      if (endDate) where.created_at.lte = new Date(endDate as string);
-    }
+    const companyId = user.role === 'super_admin' && req.query.company_id
+      ? parseInt(req.query.company_id as string)
+      : user.company_id;
 
-    // Get VM creation/deletion history from activity logs
-    const activities = await prisma.activity_logs.findMany({
-      where: {
-        ...where,
-        activity_type: 'vm_management',
-        action: { in: ['create', 'delete'] }
+    // Get invoices with line items
+    const invoices = await prisma.invoices.findMany({
+      where: { company_id: companyId },
+      include: {
+        invoice_line_items: true
       },
-      orderBy: { created_at: 'desc' },
-      take: Number(limit)
-    });
-
-    // Get current snapshot
-    const currentVMs = await prisma.virtual_machines.findMany({
-      where: { company_id: targetCompanyId },
-      select: {
-        id: true,
-        name: true,
-        cpu_cores: true,
-        memory_mb: true,
-        storage_gb: true,
-        status: true,
-        created_at: true,
-        project_id: true
+      orderBy: {
+        billing_period_start: 'desc'
       }
     });
 
-    // Get usage_tracking data if available
-    const usageTracking = await prisma.usage_tracking.findMany({
-      where: {
-        company_id: targetCompanyId,
-        ...(startDate || endDate ? {
-          billing_period_start: {
-            ...(startDate ? { gte: new Date(startDate as string) } : {}),
-            ...(endDate ? { lte: new Date(endDate as string) } : {})
-          }
-        } : {})
-      },
-      orderBy: { billing_period_start: 'desc' },
-      take: Number(limit)
-    });
-
-    res.json({
-      success: true,
-      data: {
-        company_id: targetCompanyId,
-        current_resources: {
-          vm_count: currentVMs.length,
-          vms: currentVMs
-        },
-        history: activities,
-        usage_tracking: usageTracking,
-        period: {
-          start: startDate || null,
-          end: endDate || null
-        }
-      }
-    });
-  } catch (error: any) {
-    logger.error('Get usage history error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch usage history',
-      error: error.message
-    });
+    res.json({ success: true, data: invoices });
+  } catch (error) {
+    logger.error('Error getting billing history:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
 /**
- * Get billing report for all companies (super_admin only)
+ * GET /api/billing/pricing-plans
+ * Get available pricing plans
+ */
+export const getPricingPlans = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+      select: { company_id: true, role: true }
+    });
+
+    // Super admins can see all plans, regular users see only global plans
+    const whereClause = user?.role === 'super_admin'
+      ? { is_active: true }
+      : { is_active: true, company_id: null };
+
+    const plans = await prisma.pricing_plans.findMany({
+      where: whereClause,
+      orderBy: { display_order: 'asc' }
+    });
+
+    res.json({ success: true, data: plans });
+  } catch (error) {
+    logger.error('Error getting pricing plans:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+/**
+ * POST /api/billing/generate-invoice
+ * Manually generate invoice for a company (super_admin only)
+ */
+export const generateInvoiceManually = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+
+    // Check if user is super_admin
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+      select: { role: true }
+    });
+
+    if (user?.role !== 'super_admin') {
+      res.status(403).json({
+        success: false,
+        message: 'Only super admins can manually generate invoices'
+      });
+      return;
+    }
+
+    const { company_id, billing_month } = req.body;
+
+    if (!company_id) {
+      res.status(400).json({
+        success: false,
+        message: 'company_id is required'
+      });
+      return;
+    }
+
+    const billingDate = billing_month ? new Date(billing_month) : new Date();
+
+    const invoiceId = await generateInvoice(company_id, billingDate, userId);
+
+    if (!invoiceId) {
+      res.status(400).json({
+        success: false,
+        message: 'Could not generate invoice. Check if company has active billing and pricing plan.'
+      });
+      return;
+    }
+
+    // Fetch created invoice with line items
+    const invoice = await prisma.invoices.findUnique({
+      where: { id: invoiceId },
+      include: {
+        invoice_line_items: true
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Invoice generated successfully',
+      data: invoice
+    });
+  } catch (error) {
+    logger.error('Error generating invoice manually:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+/**
+ * POST /api/billing/snapshots/daily
+ * Trigger daily VM snapshots (cron job endpoint - super_admin only)
+ */
+export const triggerDailySnapshots = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+
+    // Check if user is super_admin
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+      select: { role: true }
+    });
+
+    if (user?.role !== 'super_admin') {
+      res.status(403).json({
+        success: false,
+        message: 'Only super admins can trigger snapshot creation'
+      });
+      return;
+    }
+
+    await createDailyVMSnapshots();
+
+    res.json({
+      success: true,
+      message: 'Daily VM snapshots created successfully'
+    });
+  } catch (error) {
+    logger.error('Error triggering daily snapshots:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+/**
+ * POST /api/billing/invoices/generate-monthly
+ * Trigger monthly invoice generation for all due companies (cron job endpoint - super_admin only)
+ */
+export const triggerMonthlyInvoices = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+
+    // Check if user is super_admin
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+      select: { role: true }
+    });
+
+    if (user?.role !== 'super_admin') {
+      res.status(403).json({
+        success: false,
+        message: 'Only super admins can trigger monthly invoice generation'
+      });
+      return;
+    }
+
+    await generateMonthlyInvoices();
+
+    res.json({
+      success: true,
+      message: 'Monthly invoices generated successfully'
+    });
+  } catch (error) {
+    logger.error('Error triggering monthly invoices:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+export default {
+  getBillingEstimate,
+  getVMCosts,
+  getBillingHistory,
+  getPricingPlans,
+  generateInvoiceManually,
+  triggerDailySnapshots,
+  triggerMonthlyInvoices
+};
+
+/**
+ * GET /api/billing/all-companies
+ * Get billing overview for all companies (super_admin only)
  */
 export const getAllCompaniesBilling = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { role } = req.user!;
+    const userId = req.user!.id;
 
-    if (role !== 'super_admin') {
+    // Verify super_admin role
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+      select: { role: true }
+    });
+
+    if (!user || user.role !== 'super_admin') {
       res.status(403).json({ success: false, message: 'Access denied. Super admin only.' });
       return;
     }
 
+    // Get all companies with their VMs
     const companies = await prisma.companies.findMany({
       where: { status: 'active' },
       select: {
         id: true,
-        name: true
+        name: true,
+        virtual_machines: {
+          where: { status: { not: 'deleted' } },
+          select: {
+            id: true,
+            cpu_cores: true,
+            memory_mb: true,
+            storage_gb: true,
+            status: true
+          }
+        },
+        company_billing: {
+          select: {
+            current_pricing_plan_id: true,
+            pricing_plans: {
+              select: {
+                overage_cpu_core_price: true,
+                overage_memory_gb_price: true,
+                overage_storage_gb_price: true,
+              }
+            }
+          }
+        }
       }
     });
 
-    const billingData = [];
+    const companiesData = companies.map(company => {
+      const vms = company.virtual_machines;
+      const runningVms = vms.filter(vm => vm.status === 'running').length;
+      const totalCpu = vms.reduce((sum, vm) => sum + (vm.cpu_cores || 0), 0);
+      const totalMemoryGb = vms.reduce((sum, vm) => sum + (vm.memory_mb || 0), 0) / 1024;
+      const totalStorageGb = vms.reduce((sum, vm) => sum + (vm.storage_gb || 0), 0);
 
-    for (const company of companies) {
-      // Get VM stats
-      const vms = await prisma.virtual_machines.findMany({
-        where: { company_id: company.id },
-        select: {
-          cpu_cores: true,
-          memory_mb: true,
-          storage_gb: true,
-          status: true
-        }
-      });
+      // Calculate estimated monthly cost
+      let estimatedMonthlyCost = 0;
+      if (company.company_billing && company.company_billing.pricing_plans) {
+        const plan = company.company_billing.pricing_plans;
+        estimatedMonthlyCost = 
+          (totalCpu * (plan.overage_cpu_core_price || 0)) +
+          (totalMemoryGb * (plan.overage_memory_gb_price || 0)) +
+          (totalStorageGb * (plan.overage_storage_gb_price || 0));
+      }
 
-      const totalCPU = vms.reduce((sum, vm) => sum + (vm.cpu_cores || 0), 0);
-      const totalMemoryGB = vms.reduce((sum, vm) => sum + (vm.memory_mb || 0) / 1024, 0);
-      const totalStorageGB = vms.reduce((sum, vm) => sum + (vm.storage_gb || 0), 0);
-
-      // Get company-specific or default pricing
-      const vmBasePrice = await getPricingForResource('vm_base', company.id);
-      const cpuPrice = await getPricingForResource('cpu_core', company.id);
-      const memoryPrice = await getPricingForResource('memory_gb', company.id);
-      const storagePrice = await getPricingForResource('storage_gb', company.id);
-
-      // Calculate cost with database pricing
-      const estimatedCost =
-        (vms.length * vmBasePrice) +
-        (totalCPU * cpuPrice) +
-        (totalMemoryGB * memoryPrice) +
-        (totalStorageGB * storagePrice);
-
-      billingData.push({
+      return {
         company_id: company.id,
         company_name: company.name,
-        resources: {
-          vms: vms.length,
-          running_vms: vms.filter(vm => vm.status === 'running').length,
-          cpu_cores: totalCPU,
-          memory_gb: Math.round(totalMemoryGB * 100) / 100,
-          storage_gb: totalStorageGB
-        },
-        estimated_monthly_cost: Math.round(estimatedCost * 100) / 100,
-        currency: 'USD'
-      });
-    }
+        vm_count: vms.length,
+        running_vms: runningVms,
+        total_cpu: totalCpu,
+        total_memory_gb: Math.round(totalMemoryGb * 100) / 100,
+        total_storage_gb: Math.round(totalStorageGb * 100) / 100,
+        estimated_monthly_cost: Math.round(estimatedMonthlyCost * 100) / 100
+      };
+    });
 
-    const totalRevenue = billingData.reduce((sum, c) => sum + c.estimated_monthly_cost, 0);
+    const totalEstimatedRevenue = companiesData.reduce((sum, c) => sum + c.estimated_monthly_cost, 0);
+    const currency = 'USD';
 
     res.json({
       success: true,
       data: {
-        companies: billingData,
+        companies: companiesData,
         summary: {
-          total_companies: companies.length,
-          total_estimated_revenue: Math.round(totalRevenue * 100) / 100,
-          currency: 'USD'
+          total_companies: companiesData.length,
+          total_estimated_revenue: Math.round(totalEstimatedRevenue * 100) / 100,
+          currency: currency
         }
       }
     });
-  } catch (error: any) {
-    logger.error('Get all companies billing error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch billing data',
-      error: error.message
-    });
+  } catch (error) {
+    logger.error('Error getting all companies billing:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };

@@ -69,51 +69,76 @@ async function getProxmoxTicket(cluster: ProxmoxCluster): Promise<string> {
  * Download ISO from source cluster
  */
 async function downloadISO(
-  cluster: ProxmoxCluster,
-  storage: string,
+  cluster: any,
+  _node: string,
+  _storage: string,
   filename: string,
-  ticket: string
+  _ticket: string
 ): Promise<Buffer> {
-  const url = `https://${cluster.host}:${cluster.port}/api2/json/nodes/${storage}/storage/${storage}/content/${filename}`;
+  const child_process = require('child_process');
+  const fs = require('fs');
+  const path = require('path');
+  const { decrypt } = require('../utils/encryption');
 
-  const response = await axios.get(url, {
-    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
-    headers: {
-      Cookie: `PVEAuthCookie=${ticket}`
-    },
-    responseType: 'arraybuffer'
+  const password = decrypt(cluster.password_encrypted);
+  const remotePath = `/var/lib/vz/template/iso/${filename}`;
+  const tempFile = path.join('/tmp', `iso-download-${Date.now()}-${filename}`);
+
+  const scpCommand = `sshpass -p '${password}' scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 22 "${cluster.username.replace('@pam', '')}@${cluster.host}:${remotePath}" "${tempFile}"`;
+
+  return new Promise((resolve, reject) => {
+    child_process.exec(scpCommand, { maxBuffer: 1024 * 1024 * 1024 }, (error: any, stdout: any, stderr: any) => {
+      if (error) {
+        logger.error('SCP download error:', { error: error.message, stderr });
+        try { fs.unlinkSync(tempFile); } catch(e) {}
+        reject(new Error(`Failed to download ISO via SCP: ${stderr || error.message}`));
+        return;
+      }
+      try {
+        const fileBuffer = fs.readFileSync(tempFile);
+        fs.unlinkSync(tempFile);
+        resolve(fileBuffer);
+      } catch (readError) {
+        logger.error('Failed to read downloaded ISO:', readError);
+        reject(new Error('Failed to read downloaded ISO file'));
+      }
+    });
   });
-
-  return Buffer.from(response.data);
 }
 
 /**
  * Upload ISO to target cluster
  */
 async function uploadISO(
-  cluster: ProxmoxCluster,
-  node: string,
-  storage: string,
+  cluster: any,
+  _node: string,
+  _storage: string,
   filename: string,
   content: Buffer,
-  ticket: string
+  _ticket: string
 ): Promise<void> {
-  const FormData = require('form-data');
-  const form = new FormData();
+  const child_process = require('child_process');
+  const fs = require('fs');
+  const path = require('path');
+  const { decrypt } = require('../utils/encryption');
 
-  form.append('content', 'iso');
-  form.append('filename', content, filename);
+  const password = decrypt(cluster.password_encrypted);
+  const tempFile = path.join('/tmp', `iso-upload-${Date.now()}-${filename}`);
+  fs.writeFileSync(tempFile, content);
 
-  const url = `https://${cluster.host}:${cluster.port}/api2/json/nodes/${node}/storage/${storage}/upload`;
+  const remotePath = `/var/lib/vz/template/iso/${filename}`;
+  const scpCommand = `sshpass -p '${password}' scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 22 "${tempFile}" "${cluster.username.replace('@pam', '')}@${cluster.host}:${remotePath}"`;
 
-  await axios.post(url, form, {
-    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
-    headers: {
-      ...form.getHeaders(),
-      Cookie: `PVEAuthCookie=${ticket}`
-    },
-    maxContentLength: Infinity,
-    maxBodyLength: Infinity
+  return new Promise((resolve, reject) => {
+    child_process.exec(scpCommand, (error: any, stdout: any, stderr: any) => {
+      fs.unlinkSync(tempFile);
+      if (error) {
+        logger.error('SCP upload error:', { error: error.message, stderr });
+        reject(new Error(`Failed to upload ISO via SCP: ${stderr || error.message}`));
+        return;
+      }
+      resolve();
+    });
   });
 }
 
@@ -187,6 +212,18 @@ export const startISOSync = async (req: AuthRequest, res: Response): Promise<voi
     };
 
     syncJobs.set(jobId, syncJob);
+    // Persist to database
+    database.iso_sync_jobs.create({
+      data: {
+        id: jobId,
+        iso_id: iso.id,
+        source_cluster_id: iso.cluster_id,
+        target_cluster_ids: JSON.stringify(targetClusterIds),
+        status: 'pending',
+        progress: 0,
+        results: JSON.stringify(syncJob.results)
+      }
+    }).catch(err => logger.error('Failed to persist sync job:', err));
 
     // Start async sync process
     processISOSync(jobId, iso, sourceCluster, targetClusters, targetStorage, targetNode, req.user!.id).catch(error => {
@@ -200,12 +237,8 @@ export const startISOSync = async (req: AuthRequest, res: Response): Promise<voi
     });
 
     res.status(202).json({
-      success: true,
-      data: {
-        jobId,
-        message: 'ISO sync job started',
-        status: 'pending'
-      }
+      data: syncJob,
+      success: true
     });
   } catch (error) {
     logger.error('Start ISO sync error:', error);
@@ -233,11 +266,11 @@ async function processISOSync(
 
   try {
     // Get source cluster ticket
-    const sourceTicket = await getProxmoxTicket(sourceCluster);
+    // const sourceTicket = await getProxmoxTicket(sourceCluster); // Not needed for SSH/SCP
 
     // Download ISO from source
     logger.info(`Downloading ISO ${iso.filename} from cluster ${sourceCluster.name}`);
-    const isoContent = await downloadISO(sourceCluster, iso.storage, iso.filename, sourceTicket);
+    const isoContent = await downloadISO(sourceCluster, iso.node, iso.storage, iso.filename, "");
 
     job.progress = 10;
 
@@ -252,25 +285,10 @@ async function processISOSync(
         logger.info(`Uploading ISO to cluster ${targetCluster.name}`);
 
         // Get target cluster ticket
-        const targetTicket = await getProxmoxTicket(targetCluster);
+        // const "" = await getProxmoxTicket(targetCluster); // Not needed for SSH/SCP
 
-        // Determine target node (use first node if not specified)
-        let uploadNode = targetNode;
-        if (!uploadNode) {
-          // Get first available node from cluster
-          const nodesResponse = await axios.get(
-            `https://${targetCluster.host}:${targetCluster.port}/api2/json/nodes`,
-            {
-              httpsAgent: new https.Agent({ rejectUnauthorized: false }),
-              headers: { Cookie: `PVEAuthCookie=${targetTicket}` }
-            }
-          );
-          if (nodesResponse.data?.data && nodesResponse.data.data.length > 0) {
-            uploadNode = nodesResponse.data.data[0].node;
-          } else {
-            throw new Error('No nodes available in target cluster');
-          }
-        }
+        // For SSH/SCP, node doesn't matter - use source node or 'pve' as default
+        let uploadNode = targetNode || iso.node || 'pve';
 
         // Upload ISO
         await uploadISO(
@@ -279,7 +297,7 @@ async function processISOSync(
           targetStorage || iso.storage,
           iso.filename,
           isoContent,
-          targetTicket
+          ""
         );
 
         // Create ISO record in database
@@ -314,6 +332,13 @@ async function processISOSync(
       }
 
       job.progress = 10 + (i + 1) * progressIncrement;
+        await database.iso_sync_jobs.update({
+          where: { id: jobId },
+          data: {
+            progress: Math.floor(job.progress),
+            results: JSON.stringify(job.results)
+          }
+        }).catch(err => logger.error('Failed to update progress:', err));
     }
 
     // Check if all succeeded
@@ -321,6 +346,15 @@ async function processISOSync(
     job.status = allSucceeded ? 'completed' : 'failed';
     job.progress = 100;
     job.completedAt = new Date();
+    await database.iso_sync_jobs.update({
+      where: { id: jobId },
+      data: {
+        status: job.status,
+        progress: 100,
+        results: JSON.stringify(job.results),
+        completed_at: job.completedAt
+      }
+    }).catch(err => logger.error('Failed to update completion:', err));
 
     logger.info(`ISO sync job ${jobId} completed with status: ${job.status}`);
   } catch (error: any) {
@@ -338,10 +372,28 @@ export const getISOSyncStatus = async (req: AuthRequest, res: Response): Promise
   try {
     const { jobId } = req.params;
 
-    const job = syncJobs.get(jobId);
+    let job = syncJobs.get(jobId);
     if (!job) {
-      res.status(404).json({ success: false, message: 'Sync job not found' });
-      return;
+      // Check database for completed jobs
+      const dbJob = await database.iso_sync_jobs.findUnique({
+        where: { id: jobId }
+      });
+      if (dbJob) {
+        job = {
+          id: dbJob.id,
+          sourceIsoId: dbJob.iso_id,
+          sourceClusterId: dbJob.source_cluster_id,
+          targetClusterIds: JSON.parse(dbJob.target_cluster_ids),
+          status: dbJob.status,
+          progress: dbJob.progress,
+          results: JSON.parse(dbJob.results || '[]'),
+          completedAt: dbJob.completed_at,
+          error: dbJob.error
+        };
+      } else {
+        res.status(404).json({ success: false, message: 'Sync job not found' });
+        return;
+      }
     }
 
     res.json({ success: true, data: job });
@@ -374,10 +426,28 @@ export const cancelISOSync = async (req: AuthRequest, res: Response): Promise<vo
   try {
     const { jobId } = req.params;
 
-    const job = syncJobs.get(jobId);
+    let job = syncJobs.get(jobId);
     if (!job) {
-      res.status(404).json({ success: false, message: 'Sync job not found' });
-      return;
+      // Check database for completed jobs
+      const dbJob = await database.iso_sync_jobs.findUnique({
+        where: { id: jobId }
+      });
+      if (dbJob) {
+        job = {
+          id: dbJob.id,
+          sourceIsoId: dbJob.iso_id,
+          sourceClusterId: dbJob.source_cluster_id,
+          targetClusterIds: JSON.parse(dbJob.target_cluster_ids),
+          status: dbJob.status,
+          progress: dbJob.progress,
+          results: JSON.parse(dbJob.results || '[]'),
+          completedAt: dbJob.completed_at,
+          error: dbJob.error
+        };
+      } else {
+        res.status(404).json({ success: false, message: 'Sync job not found' });
+        return;
+      }
     }
 
     if (job.status === 'completed' || job.status === 'failed') {

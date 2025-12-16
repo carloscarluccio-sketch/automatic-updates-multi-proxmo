@@ -418,8 +418,8 @@ export async function testSMTPConnection() {
  */
 export async function renderTemplate(templateName: string, variables: Record<string, any>) {
   try {
-    const template = await prisma.email_templates.findUnique({
-      where: { name: templateName },
+    const template = await prisma.email_templates.findFirst({
+      where: { template_slug: templateName },
     });
 
     if (!template) {
@@ -427,8 +427,8 @@ export async function renderTemplate(templateName: string, variables: Record<str
     }
 
     let subject = template.subject;
-    let bodyHtml = template.body_html;
-    let bodyText = template.body_text || '';
+    let bodyHtml = template.html_body;
+    let bodyText = template.text_body || '';
 
     // Replace variables in template
     Object.keys(variables).forEach((key) => {

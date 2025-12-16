@@ -24,10 +24,16 @@ import NetworkCheckIcon from '@mui/icons-material/NetworkCheck';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import FeedbackIcon from '@mui/icons-material/Feedback';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import ArticleIcon from '@mui/icons-material/Article';
+import SupportAgentIcon from '@mui/icons-material/SupportAgent';
+import WebhookIcon from '@mui/icons-material/Webhook';
+import CardMembershipIcon from '@mui/icons-material/CardMembership';
 import SecurityIcon from '@mui/icons-material/Security';
 import SettingsIcon from '@mui/icons-material/Settings';
 import CloudIcon from '@mui/icons-material/Cloud';
 import PaletteIcon from '@mui/icons-material/Palette';
+import EmailIcon from '@mui/icons-material/Email';
 import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import ShieldIcon from '@mui/icons-material/Shield';
 import HistoryIcon from '@mui/icons-material/History';
@@ -36,20 +42,25 @@ import ExpandMore from '@mui/icons-material/ExpandMore';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import PriceChangeIcon from '@mui/icons-material/PriceChange';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import ReceiptIcon from '@mui/icons-material/Receipt';
 import BackupIcon from '@mui/icons-material/Backup';
+import ScheduleIcon from '@mui/icons-material/Schedule';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
-import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
-import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
-import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
-import EmailIcon from '@mui/icons-material/Email';
-import DesktopWindowsIcon from '@mui/icons-material/DesktopWindows';
-import TrackChangesIcon from '@mui/icons-material/TrackChanges';
-import BookmarkAddIcon from '@mui/icons-material/BookmarkAdd';
+import ReceiptIcon from '@mui/icons-material/Receipt';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import SyncIcon from '@mui/icons-material/Sync';
+import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
+import DescriptionIcon from '@mui/icons-material/Description';
+import BookmarkIcon from '@mui/icons-material/Bookmark';
+import TimelineIcon from '@mui/icons-material/Timeline';
 import SpeedIcon from '@mui/icons-material/Speed';
+import CloudSyncIcon from '@mui/icons-material/CloudSync';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import MonitorIcon from '@mui/icons-material/Monitor';
+import AlarmIcon from '@mui/icons-material/Alarm';
 import { useAuthStore } from '../../store/authStore';
 import { authService } from '../../services/authService';
+import { useBranding } from '../../theme/DynamicThemeProvider';
+import { GlobalSearchBar } from '../GlobalSearchBar';
 
 const drawerWidth = 260;
 
@@ -58,7 +69,7 @@ interface MenuItem {
   path?: string;
   icon: React.ReactElement;
   children?: MenuItem[];
-  requiresRole?: string;
+  roles?: string[];
 }
 
 export const MainLayout: React.FC = () => {
@@ -66,12 +77,13 @@ export const MainLayout: React.FC = () => {
   const location = useLocation();
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
+  const { branding } = useBranding();
 
   const [openSections, setOpenSections] = useState<{ [key: string]: boolean }>({
-    infrastructure: true,
-    billing: false,
+    infrastructure: false,
     network: false,
     security: false,
+    monitoring: false,
     administration: false,
     system: false,
   });
@@ -91,13 +103,14 @@ export const MainLayout: React.FC = () => {
   const menuStructure: MenuItem[] = [
     { label: 'Dashboard', path: '/dashboard', icon: <DashboardIcon /> },
     { label: 'Analytics', path: '/analytics', icon: <BarChartIcon /> },
-    { label: 'Usage Dashboard (PAYG)', path: '/usage-dashboard', icon: <TrendingUpIcon /> },
     {
       label: 'Billing',
       icon: <AttachMoneyIcon />,
       children: [
         { label: 'Billing Overview', path: '/billing', icon: <AttachMoneyIcon /> },
         { label: 'Invoices', path: '/invoices', icon: <ReceiptIcon /> },
+        { label: 'Usage Dashboard', path: '/usage-dashboard', icon: <TrendingUpIcon /> },
+        ...(user?.role === 'super_admin' ? [{ label: 'Pricing Management', path: '/pricing-plans', icon: <PriceChangeIcon /> }] : []),
       ],
     },
     {
@@ -110,16 +123,13 @@ export const MainLayout: React.FC = () => {
         { label: 'Templates', path: '/templates', icon: <AssessmentIcon /> },
         { label: 'ISOs', path: '/isos', icon: <AssessmentIcon /> },
         { label: 'VM Import & Discovery', path: '/vm-import', icon: <CloudDownloadIcon /> },
-        { label: 'ESXi Import', path: '/esxi-import', icon: <DesktopWindowsIcon /> },
-        { label: 'Backup Schedules', path: '/backup-schedules', icon: <BackupIcon /> },
-        { label: 'Snapshot Schedules', path: '/snapshot-schedules', icon: <CameraAltIcon /> },
-        { label: 'DR Test Schedules', path: '/dr-test-schedules', icon: <HealthAndSafetyIcon /> },
-        { label: 'DR Cluster Pairs', path: '/dr-cluster-pairs', icon: <HealthAndSafetyIcon /> },
+        { label: 'ESXi Import', path: '/esxi-import', icon: <CloudSyncIcon /> },
+        { label: 'VM Templates', path: '/vm-templates', icon: <DescriptionIcon /> },
         { label: 'Backup Policies', path: '/backup-policies', icon: <BackupIcon /> },
-        { label: 'VM Templates', path: '/vm-templates', icon: <AssessmentIcon /> },
-        { label: 'Alert Rules', path: '/alert-rules', icon: <NotificationsActiveIcon /> },
-        { label: 'Monitoring Dashboard', path: '/monitoring', icon: <MonitorHeartIcon /> },
-        { label: 'Email Notifications', path: '/notifications', icon: <EmailIcon /> },
+        { label: 'Backup Schedules', path: '/backup-schedules', icon: <ScheduleIcon /> },
+        { label: 'Snapshot Schedules', path: '/snapshot-schedules', icon: <CameraAltIcon /> },
+        { label: 'DR Cluster Pairs', path: '/dr-cluster-pairs', icon: <SyncIcon /> },
+        { label: 'DR Test Schedules', path: '/dr-test-schedules', icon: <PlaylistAddCheckIcon /> },
       ],
     },
     {
@@ -127,8 +137,8 @@ export const MainLayout: React.FC = () => {
       icon: <NetworkCheckIcon />,
       children: [
         { label: 'IP Ranges', path: '/ip-ranges', icon: <NetworkCheckIcon /> },
-        { label: 'IP Reservations', path: '/ip-reservations', icon: <BookmarkAddIcon /> },
-        { label: 'IP Tracking & Monitoring', path: '/ip-tracking', icon: <TrackChangesIcon /> },
+        { label: 'IP Reservations', path: '/ip-reservations', icon: <BookmarkIcon /> },
+        { label: 'IP Tracking', path: '/ip-tracking', icon: <TimelineIcon /> },
         { label: 'NAT Rules', path: '/nat', icon: <NetworkCheckIcon /> },
         { label: 'NAT Performance', path: '/nat-performance', icon: <SpeedIcon /> },
       ],
@@ -141,6 +151,16 @@ export const MainLayout: React.FC = () => {
         { label: 'SSO Configuration', path: '/sso', icon: <ShieldIcon /> },
         { label: '2FA Settings', path: '/2fa', icon: <VpnKeyIcon /> },
         { label: 'API Tokens', path: '/api-tokens', icon: <VpnKeyIcon /> },
+        { label: 'API Documentation', path: '/api-docs', icon: <DescriptionIcon /> },
+      ],
+    },
+    {
+      label: 'Monitoring',
+      icon: <MonitorIcon />,
+      children: [
+        { label: 'Monitoring Dashboard', path: '/monitoring', icon: <MonitorIcon /> },
+        { label: 'Alert Rules', path: '/alert-rules', icon: <AlarmIcon /> },
+        { label: 'Notifications', path: '/notifications', icon: <NotificationsIcon /> },
       ],
     },
     {
@@ -151,12 +171,7 @@ export const MainLayout: React.FC = () => {
         { label: 'Users', path: '/users', icon: <GroupIcon /> },
         { label: 'Profiles', path: '/profiles', icon: <AssessmentIcon /> },
         { label: 'Branding', path: '/branding', icon: <PaletteIcon /> },
-        {
-          label: 'Pricing Management',
-          path: '/pricing',
-          icon: <PriceChangeIcon />,
-          requiresRole: 'super_admin'
-        },
+        { label: 'Email Templates', path: '/email-templates', icon: <EmailIcon /> },
       ],
     },
     {
@@ -164,29 +179,22 @@ export const MainLayout: React.FC = () => {
       icon: <HistoryIcon />,
       children: [
         { label: 'Activity Logs', path: '/activity-logs', icon: <HistoryIcon /> },
+        { label: 'Webhooks', path: '/webhooks', icon: <WebhookIcon /> },
+        { label: 'Subscriptions', path: '/subscriptions', icon: <CardMembershipIcon /> },
+        { label: 'Rate Limits', path: '/rate-limits', icon: <SpeedIcon /> },
+        { label: 'Notification Settings', path: '/notification-settings', icon: <NotificationsIcon /> },
+        { label: 'Support Tickets', path: '/support-tickets', icon: <SupportAgentIcon /> },
+        { label: 'Help Center', path: '/help', icon: <HelpOutlineIcon /> },
+        { label: 'Knowledge Base Admin', path: '/help-admin/articles', icon: <ArticleIcon />, roles: ['super_admin', 'company_admin'] },
         { label: 'Feedback', path: '/feedback', icon: <FeedbackIcon /> },
       ],
     },
   ];
 
   const renderMenuItem = (item: MenuItem) => {
-    // Filter by role if required
-    if (item.requiresRole && user?.role !== item.requiresRole) {
-      return null;
-    }
-
     if (item.children) {
       const sectionKey = item.label.toLowerCase().replace(/\s+/g, '');
       const isOpen = openSections[sectionKey] ?? false;
-
-      // Filter children by role
-      const visibleChildren = item.children.filter(
-        (child) => !child.requiresRole || user?.role === child.requiresRole
-      );
-
-      if (visibleChildren.length === 0) {
-        return null;
-      }
 
       return (
         <React.Fragment key={item.label}>
@@ -199,7 +207,7 @@ export const MainLayout: React.FC = () => {
           </ListItem>
           <Collapse in={isOpen} timeout="auto" unmountOnExit>
             <List component="div" disablePadding>
-              {visibleChildren.map((child) => (
+              {item.children.map((child) => (
                 <ListItem key={child.path} disablePadding>
                   <ListItemButton
                     sx={{ pl: 4 }}
@@ -234,9 +242,21 @@ export const MainLayout: React.FC = () => {
     <Box sx={{ display: 'flex' }}>
       <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Proxmox Multi-Tenant
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+            {branding?.logo_filename && (
+              <img
+                src={`/uploads/logos/${branding.logo_filename}`}
+                alt="Logo"
+                style={{ height: 40, marginRight: 12 }}
+              />
+            )}
+            <Typography variant="h6">
+              {branding?.panel_name || 'Proxmox Multi-Tenant'}
+            </Typography>
+          </Box>
+          <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', maxWidth: 600, mx: 2 }}>
+            <GlobalSearchBar />
+          </Box>
           {user && (
             <Typography variant="body2" sx={{ mr: 2 }}>
               {user.email} ({user.role})
