@@ -460,6 +460,31 @@ model billing_records {
   @@index([status], map: "idx_status")
 }
 
+model billing_transactions {
+  id                       Int                                   @id @default(autoincrement())
+  company_id               Int
+  amount                   Decimal                               @db.Decimal(10, 2)
+  currency                 String?                               @default("USD") @db.VarChar(3)
+  payment_method           String                                @db.VarChar(50)
+  status                   billing_transactions_status
+  transaction_type         billing_transactions_transaction_type
+  description              String?                               @db.Text
+  stripe_payment_intent_id String?                               @db.VarChar(255)
+  stripe_invoice_id        String?                               @db.VarChar(255)
+  stripe_charge_id         String?                               @db.VarChar(255)
+  metadata                 Json?
+  created_at               DateTime?                             @default(now()) @db.Timestamp(0)
+  updated_at               DateTime?                             @default(now()) @db.Timestamp(0)
+  companies                companies                             @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "billing_transactions_ibfk_1")
+
+  @@index([company_id], map: "idx_company_id")
+  @@index([created_at], map: "idx_created_at")
+  @@index([status], map: "idx_status")
+  @@index([stripe_invoice_id], map: "idx_stripe_invoice")
+  @@index([stripe_payment_intent_id], map: "idx_stripe_payment_intent")
+  @@index([transaction_type], map: "idx_transaction_type")
+}
+
 model bookmarks {
   id          Int       @id @default(autoincrement())
   user_id     Int
@@ -2045,6 +2070,27 @@ model iso_company_assignments {
   @@index([assigned_by], map: "assigned_by")
   @@index([company_id], map: "idx_company_id")
   @@index([iso_id], map: "idx_iso_id")
+}
+
+model iso_sync_jobs {
+  id                 String                @id @db.VarChar(100)
+  iso_id             Int
+  source_cluster_id  Int
+  target_cluster_ids Json
+  status             iso_sync_jobs_status? @default(pending)
+  progress           Int?                  @default(0)
+  results            Json?
+  error              String?               @db.Text
+  created_at         DateTime?             @default(now()) @db.Timestamp(0)
+  updated_at         DateTime?             @default(now()) @db.Timestamp(0)
+  completed_at       DateTime?             @db.Timestamp(0)
+  isos               isos                  @relation(fields: [iso_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "iso_sync_jobs_ibfk_1")
+  proxmox_clusters   proxmox_clusters      @relation(fields: [source_cluster_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "iso_sync_jobs_ibfk_2")
+
+  @@index([created_at], map: "idx_created_at")
+  @@index([status], map: "idx_status")
+  @@index([iso_id], map: "iso_id")
+  @@index([source_cluster_id], map: "source_cluster_id")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -4185,52 +4231,6 @@ model whitelabel_settings {
   companies                   companies                            @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "whitelabel_settings_ibfk_1")
 }
 
-model iso_sync_jobs {
-  id                 String                @id @db.VarChar(100)
-  iso_id             Int
-  source_cluster_id  Int
-  target_cluster_ids Json
-  status             iso_sync_jobs_status? @default(pending)
-  progress           Int?                  @default(0)
-  results            Json?
-  error              String?               @db.Text
-  created_at         DateTime?             @default(now()) @db.Timestamp(0)
-  updated_at         DateTime?             @default(now()) @db.Timestamp(0)
-  completed_at       DateTime?             @db.Timestamp(0)
-  isos               isos                  @relation(fields: [iso_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "iso_sync_jobs_ibfk_1")
-  proxmox_clusters   proxmox_clusters      @relation(fields: [source_cluster_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "iso_sync_jobs_ibfk_2")
-
-  @@index([created_at], map: "idx_created_at")
-  @@index([status], map: "idx_status")
-  @@index([iso_id], map: "iso_id")
-  @@index([source_cluster_id], map: "source_cluster_id")
-}
-
-model billing_transactions {
-  id                       Int                                   @id @default(autoincrement())
-  company_id               Int
-  amount                   Decimal                               @db.Decimal(10, 2)
-  currency                 String?                               @default("USD") @db.VarChar(3)
-  payment_method           String                                @db.VarChar(50)
-  status                   billing_transactions_status
-  transaction_type         billing_transactions_transaction_type
-  description              String?                               @db.Text
-  stripe_payment_intent_id String?                               @db.VarChar(255)
-  stripe_invoice_id        String?                               @db.VarChar(255)
-  stripe_charge_id         String?                               @db.VarChar(255)
-  metadata                 Json?
-  created_at               DateTime?                             @default(now()) @db.Timestamp(0)
-  updated_at               DateTime?                             @default(now()) @db.Timestamp(0)
-  companies                companies                             @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "billing_transactions_ibfk_1")
-
-  @@index([company_id], map: "idx_company_id")
-  @@index([created_at], map: "idx_created_at")
-  @@index([status], map: "idx_status")
-  @@index([stripe_invoice_id], map: "idx_stripe_invoice")
-  @@index([stripe_payment_intent_id], map: "idx_stripe_payment_intent")
-  @@index([transaction_type], map: "idx_transaction_type")
-}
-
 enum bulk_cluster_operations_operation_type {
   test_connection
   restart_service
@@ -4631,6 +4631,13 @@ enum help_faqs_answer_type {
   html
 }
 
+enum iso_sync_jobs_status {
+  pending
+  in_progress
+  completed
+  failed
+}
+
 enum monitoring_metrics_metric_type {
   cpu
   memory
@@ -4713,6 +4720,13 @@ enum alert_rules_metric_type {
   network
   load
   uptime
+}
+
+enum billing_transactions_status {
+  pending
+  completed
+  failed
+  refunded
 }
 
 enum dr_health_checks_status {
@@ -4799,6 +4813,13 @@ enum backup_schedules_schedule_type {
   daily
   weekly
   monthly
+}
+
+enum billing_transactions_transaction_type {
+  payment
+  subscription_payment
+  refund
+  adjustment
 }
 
 enum dr_automation_logs_status {
@@ -4910,11 +4931,11 @@ enum notification_queue_priority {
 }
 
 enum onboarding_registrations_company_size {
-  small      @map("1-10")
-  medium     @map("11-50")
-  large      @map("51-200")
-  xlarge     @map("201-500")
-  enterprise @map("500+")
+  SIZE_1_10 @map("1-10")
+  SIZE_11_50 @map("11-50")
+  SIZE_51_200 @map("51-200")
+  SIZE_201_500 @map("201-500")
+  SIZE_500_PLUS @map("500+")
 }
 
 enum quota_approval_requests_status {
@@ -5419,7 +5440,7 @@ enum subscription_plans_support_level {
   none
   email
   priority
-  twentyfour_seven @map("24/7")
+  // 24/7 @map("24/7")
 }
 
 enum dr_zfs_replication_jobs_sync_status {
@@ -5499,25 +5520,4 @@ enum company_url_mappings_white_label_level {
   standard
   premium
   enterprise
-}
-
-enum iso_sync_jobs_status {
-  pending
-  in_progress
-  completed
-  failed
-}
-
-enum billing_transactions_status {
-  pending
-  completed
-  failed
-  refunded
-}
-
-enum billing_transactions_transaction_type {
-  payment
-  subscription_payment
-  refund
-  adjustment
 }
