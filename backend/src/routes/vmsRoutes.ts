@@ -25,7 +25,9 @@ import { bulkVMAction, bulkVMUpdate } from '../controllers/bulkVMController';
 const router = express.Router();
 
 router.use(authenticate);
-// Bulk operationsrouter.post('/bulk-action', bulkVMAction);router.patch('/bulk-update', bulkVMUpdate);
+// Bulk operations
+router.post('/bulk-action', bulkVMAction);
+router.patch('/bulk-update', bulkVMUpdate);
 
 // List all VMs
 router.get('/', getVMs);

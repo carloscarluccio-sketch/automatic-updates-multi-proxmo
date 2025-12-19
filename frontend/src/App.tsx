@@ -46,13 +46,15 @@ import NotificationsPage from './pages/NotificationsPage';
 import ESXiPage from './pages/ESXiPage';
 import { IPTrackingPage } from './pages/IPTrackingPage';
 import IPReservationsPage from './pages/IPReservationsPage';
-import SupportTicketsPage from './pages/SupportTicketsPage';
-import WebhooksPage from './pages/WebhooksPage';
-import SubscriptionPlansPage from './pages/SubscriptionPlansPage';
-import RateLimitsPage from './pages/RateLimitsPage';
-import NotificationSettingsPage from './pages/NotificationSettingsPage';
 import { MainLayout } from './components/layout/MainLayout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+
+// Mobile pages
+import MobileDashboard from './pages/MobileDashboard';
+import MobileVMsPage from './pages/MobileVMsPage';
+import MobileSupportPage from './pages/MobileSupportPage';
+import MobileProfilePage from './pages/MobileProfilePage';
+import { MobileRedirect } from "./components/MobileRedirect";
 
 function App() {
   return (
@@ -63,7 +65,15 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+
+          {/* Mobile routes (no MainLayout sidebar) */}
+          <Route path="/mobile" element={<ProtectedRoute><MobileDashboard /></ProtectedRoute>} />
+          <Route path="/mobile/vms" element={<ProtectedRoute><MobileVMsPage /></ProtectedRoute>} />
+          <Route path="/mobile/support" element={<ProtectedRoute><MobileSupportPage /></ProtectedRoute>} />
+          <Route path="/mobile/profile" element={<ProtectedRoute><MobileProfilePage /></ProtectedRoute>} />
+
+          {/* Desktop routes (with MainLayout sidebar) */}
+          <Route path="/" element={<ProtectedRoute><MobileRedirect><MainLayout /></MobileRedirect></ProtectedRoute>}>
             <Route index element={<Navigate to="/dashboard" />} />
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="users" element={<UsersPage />} />
@@ -107,11 +117,6 @@ function App() {
             <Route path="esxi-import" element={<ESXiPage />} />
             <Route path="ip-tracking" element={<IPTrackingPage />} />
             <Route path="ip-reservations" element={<IPReservationsPage />} />
-            <Route path="support-tickets" element={<SupportTicketsPage />} />
-            <Route path="webhooks" element={<WebhooksPage />} />
-            <Route path="subscriptions" element={<SubscriptionPlansPage />} />
-            <Route path="rate-limits" element={<RateLimitsPage />} />
-            <Route path="notification-settings" element={<NotificationSettingsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Routes>

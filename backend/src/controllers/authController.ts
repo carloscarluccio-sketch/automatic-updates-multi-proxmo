@@ -242,3 +242,42 @@ export const logout = async (req: AuthRequest, res: Response): Promise<void> => 
     res.status(500).json({ success: false, message: 'Logout failed' });
   }
 };
+
+export const me = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Not authenticated' });
+      return;
+    }
+
+    const user = await prisma.users.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        first_name: true,
+        last_name: true,
+        role: true,
+        company_id: true,
+        status: true,
+        companies: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+
+    res.json({ success: true, data: user });
+  } catch (error) {
+    logger.error('Get current user error:', error);
+    res.status(500).json({ success: false, message: 'Failed to get user info' });
+  }
+};

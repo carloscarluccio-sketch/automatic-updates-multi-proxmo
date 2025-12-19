@@ -597,3 +597,4 @@ export const EmailTemplatesPage: React.FC = () => {
     </Container>
   );
 };
+export default EmailTemplatesPage;

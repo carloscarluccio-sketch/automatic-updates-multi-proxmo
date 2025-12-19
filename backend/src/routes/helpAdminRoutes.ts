@@ -11,7 +11,19 @@ import {
   getDrafts,
   publishFromDraft,
   deleteDraft,
-  getArticleChangelog
+  getArticleChangelog,
+  getFAQs,
+  getFAQById,
+  createFAQ,
+  updateFAQ,
+  deleteFAQ,
+  publishFAQ,
+  unpublishFAQ,
+  getAdminCategories,
+  getCategoryById,
+  createCategory,
+  updateCategory,
+  deleteCategory
 } from '../controllers/helpAdminController';
 import { authenticate } from '../middlewares/auth';
 
@@ -39,5 +51,23 @@ router.get('/drafts', getDrafts);
 router.post('/drafts', saveDraft);
 router.post('/drafts/:id/publish', publishFromDraft);
 router.delete('/drafts/:id', deleteDraft);
+
+// FAQ CRUD routes
+router.get('/faqs', getFAQs);
+router.get('/faqs/:id', getFAQById);
+router.post('/faqs', createFAQ);
+router.put('/faqs/:id', updateFAQ);
+router.delete('/faqs/:id', deleteFAQ);
+
+// FAQ publishing routes
+router.post('/faqs/:id/publish', publishFAQ);
+router.post('/faqs/:id/unpublish', unpublishFAQ);
+
+// Category CRUD routes
+router.get('/categories', getAdminCategories);
+router.get('/categories/:id', getCategoryById);
+router.post('/categories', createCategory);
+router.put('/categories/:id', updateCategory);
+router.delete('/categories/:id', deleteCategory);
 
 export default router;

@@ -20,6 +20,8 @@
     "@mui/icons-material": "^5.18.0",
     "@mui/material": "^5.15.0",
     "@novnc/novnc": "^1.6.0",
+    "@stripe/react-stripe-js": "^5.4.1",
+    "@stripe/stripe-js": "^8.6.0",
     "@types/markdown-it": "^14.1.2",
     "axios": "^1.6.0",
     "dayjs": "^1.11.10",

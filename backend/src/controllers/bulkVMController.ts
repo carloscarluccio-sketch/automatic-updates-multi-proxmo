@@ -36,7 +36,7 @@ export const bulkVMAction = async (req: Request, res: Response): Promise<void> =
     // Fetch VMs with role-based filtering
     const where: any = { id: { in: vm_ids } };
     if (user.role !== 'super_admin') {
-      where.company_id = user.company_id;
+      where.company_id = user.company_id || 0;
     }
 
     const vms = await prisma.virtual_machines.findMany({
@@ -75,7 +75,7 @@ export const bulkVMAction = async (req: Request, res: Response): Promise<void> =
         const actionResult = await executeProxmoxAction({
           clusterId: cluster.id,
           clusterHost: cluster.host,
-          clusterPort: cluster.port,
+          clusterPort: cluster.port || 8006,
           clusterUsername: cluster.username,
           clusterPassword: cluster.password_encrypted,
           vmid: vm.vmid || 0,
@@ -180,7 +180,7 @@ export const bulkVMUpdate = async (req: Request, res: Response): Promise<void> =
     // Role-based filtering
     const where: any = { id: { in: vm_ids } };
     if (user.role !== 'super_admin') {
-      where.company_id = user.company_id;
+      where.company_id = user.company_id || 0;
     }
 
     // Update VMs

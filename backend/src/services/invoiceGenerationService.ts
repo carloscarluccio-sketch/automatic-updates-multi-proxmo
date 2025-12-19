@@ -4,6 +4,7 @@
 import prisma from '../config/database';
 import logger from '../utils/logger';
 import { Decimal } from '@prisma/client/runtime/library';
+import { sendInvoiceEmail } from './emailNotificationService';
 
 interface InvoiceLineItem {
   line_type: 'usage';
@@ -65,6 +66,7 @@ export async function generateMonthlyInvoice(
       select: {
         id: true,
         name: true,
+        tax_rate: true,
         status: true
       }
     });
@@ -266,7 +268,8 @@ export async function generateMonthlyInvoice(
 
     // Calculate totals
     const subtotal = lineItems.reduce((sum, item) => sum.add(item.amount), new Decimal(0));
-    const taxRate = new Decimal(0); // TODO: Get tax rate from company settings
+    // Get tax rate from company settings
+    const taxRate = company.tax_rate ? new Decimal(company.tax_rate) : new Decimal(0);
     const taxAmount = subtotal.mul(taxRate);
     const totalAmount = subtotal.add(taxAmount);
 
@@ -414,8 +417,18 @@ export async function finalizeInvoice(invoiceId: number): Promise<void> {
 
     logger.info(`✅ Invoice ${invoice.invoice_number} finalized and marked as issued`);
 
-    // TODO: Send email notification
-    // await sendInvoiceEmail(invoice);
+    // Send email notification with PDF attachment
+    try {
+      const emailResult = await sendInvoiceEmail(invoice.id);
+      if (emailResult.success) {
+        logger.info(`Invoice email sent for ${invoice.invoice_number}`);
+      } else {
+        logger.warn(`Failed to send invoice email: ${emailResult.message}`);
+      }
+    } catch (emailError) {
+      logger.error(`Error sending invoice email for ${invoice.invoice_number}:`, emailError);
+      // Don't fail invoice generation if email fails
+    }
 
   } catch (error: any) {
     logger.error(`Error finalizing invoice ${invoiceId}:`, error);

@@ -1,0 +1,4 @@
+  async addPaymentMethod(data: any): Promise<{ success: boolean; id?: number; error?: string }> {
+    // TODO: payment_methods table does not exist in schema
+    return { success: false, error: "Payment methods table not implemented" };
+  }

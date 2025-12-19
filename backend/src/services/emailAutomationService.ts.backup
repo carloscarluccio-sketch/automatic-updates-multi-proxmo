@@ -1,0 +1,527 @@
+import database from '../config/database';
+import logger from '../utils/logger';
+import Handlebars from 'handlebars';
+
+interface QueueEmailOptions {
+  template?: string; // Template name from email_templates table
+  recipient: string;
+  recipientName?: string;
+  subject: string;
+  data?: Record<string, any>; // Template variables
+  priority?: number; // 1 (highest) to 10 (lowest), default 5
+  scheduledAt?: Date;
+  companyId?: number;
+  userId?: number;
+  contextType?: string;
+  contextId?: number;
+  cc?: string;
+  bcc?: string;
+  attachments?: any[];
+}
+
+class EmailAutomationService {
+  /**
+   * Queue an email for sending
+   */
+  async queueEmail(options: QueueEmailOptions): Promise<number> {
+    try {
+      let bodyHtml = '';
+      let bodyText = '';
+      let subject = options.subject;
+
+      // If template specified, load and compile it
+      if (options.template) {
+        const template = await database.email_templates.findFirst({
+          where: { id: parseInt(options.template), is_active: true }
+        });
+
+        if (template) {
+          // Compile HTML template
+          const htmlCompiler = Handlebars.compile(template.html_body || '');
+          bodyHtml = htmlCompiler(options.data || {});
+
+          // Compile text template
+          if (template.text_body) {
+            const textCompiler = Handlebars.compile(template.text_body);
+            bodyText = textCompiler(options.data || {});
+          }
+
+          // Use template subject if not provided
+          if (template.subject) {
+            const subjectCompiler = Handlebars.compile(template.subject);
+            subject = subjectCompiler(options.data || {});
+          }
+        } else {
+          logger.warn(`Email template not found: ${options.template}`);
+          // Fallback to simple HTML
+          bodyHtml = `<p>${options.subject}</p>`;
+        }
+      } else {
+        // No template, use data as HTML directly
+        bodyHtml = options.data?.body || options.subject;
+        bodyText = options.data?.bodyText || '';
+      }
+
+      // Get default from email/name from settings
+      const fromSettings = await database.global_settings.findFirst({
+        where: { setting_key: 'email_from_default' }
+      });
+
+      let fromEmail = 'noreply@proxmox-multi-tenant.local';
+      let fromName = 'Proxmox Multi-Tenant';
+
+      if (fromSettings && fromSettings.setting_value_text) {
+        const parsed = JSON.parse(fromSettings.setting_value_text as string);
+        fromEmail = parsed.email || fromEmail;
+        fromName = parsed.name || fromName;
+      }
+
+      // Create email queue entry
+      const email = await database.email_queue.create({
+        data: {
+          recipient_email: options.recipient,
+          recipient_name: options.recipientName || null,
+          subject,
+          body_html: bodyHtml,
+          body_text: bodyText || null,
+          from_email: fromEmail,
+          from_name: fromName,
+          reply_to: options.data?.replyTo || null,
+          cc: options.cc || null,
+          bcc: options.bcc || null,
+          status: 'pending',
+          priority: options.priority || 5,
+          scheduled_at: options.scheduledAt || null,
+          context_type: options.contextType || null,
+          context_id: options.contextId || null,
+          company_id: options.companyId || null,
+          user_id: options.userId || null,
+          attachments: options.attachments ? JSON.stringify(options.attachments) : null
+        }
+      });
+
+      logger.info(`Email queued: ${email.id} for ${options.recipient}`);
+      return email.id;
+    } catch (error) {
+      logger.error('Error queueing email:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send invoice email
+   */
+  async sendInvoiceEmail(invoiceId: number): Promise<void> {
+    try {
+      const invoice = await database.invoices.findUnique({
+        where: { id: invoiceId },
+        include: {
+          companies: true,
+          invoice_line_items: true
+        }
+      });
+
+      if (!invoice || !invoice.companies) {
+        logger.error(`Invoice not found: ${invoiceId}`);
+        return;
+      }
+
+      // Get company admin email
+      const admin = await database.users.findFirst({
+        where: {
+          company_id: invoice.company_id,
+          role: 'company_admin'
+        }
+      });
+
+      if (!admin) {
+        logger.warn(`No admin found for company ${invoice.company_id}`);
+        return;
+      }
+
+      await this.queueEmail({
+        template: 'invoice_generated',
+        recipient: admin.email,
+        recipientName: (admin.first_name && admin.last_name) ?  : admin.username || undefined,
+        subject: `Invoice #${invoice.invoice_number} - ${invoice.total_amount}`,
+        data: {
+          companyName: invoice.companies.name,
+          invoiceNumber: invoice.invoice_number,
+          invoiceDate: invoice.created_at,
+          dueDate: invoice.due_date,
+          totalAmount: invoice.total_amount,
+          currency: invoice.currency,
+          status: invoice.status,
+          lineItems: invoice.invoice_line_items
+        },
+        priority: 3,
+        companyId: invoice.company_id,
+        contextType: 'invoice',
+        contextId: invoice.id
+      });
+    } catch (error) {
+      logger.error('Error sending invoice email:', error);
+    }
+  }
+
+  /**
+   * Send payment received email
+   */
+  async sendPaymentReceivedEmail(paymentId: number): Promise<void> {
+    try {
+      const payment = await database.payments.findUnique({
+        where: { id: paymentId },
+        include: {
+          invoices: true,
+          companies: true
+        }
+      });
+
+      if (!payment || !payment.companies) return;
+
+      const admin = await database.users.findFirst({
+        where: { company_id: payment.company_id, role: 'company_admin' }
+      });
+
+      if (!admin) return;
+
+      await this.queueEmail({
+        template: 'payment_received',
+        recipient: admin.email,
+        recipientName: (admin.first_name && admin.last_name) ?  : admin.username || undefined,
+        subject: `Payment Received - ${payment.amount} ${payment.currency}`,
+        data: {
+          companyName: payment.companies.name,
+          amount: payment.amount,
+          currency: payment.currency,
+          paymentMethod: payment.payment_method,
+          invoiceNumber: payment.invoices?.invoice_number,
+          transactionId: payment.id
+        },
+        priority: 3,
+        companyId: payment.company_id,
+        contextType: 'payment',
+        contextId: payment.id
+      });
+    } catch (error) {
+      logger.error('Error sending payment received email:', error);
+    }
+  }
+
+  /**
+   * Send payment failed email
+   */
+  async sendPaymentFailedEmail(paymentId: number): Promise<void> {
+    try {
+      const payment = await database.payments.findUnique({
+        where: { id: paymentId },
+        include: {
+          invoices: true,
+          companies: true
+        }
+      });
+
+      if (!payment || !payment.companies) return;
+
+      const admin = await database.users.findFirst({
+        where: { company_id: payment.company_id, role: 'company_admin' }
+      });
+
+      if (!admin) return;
+
+      await this.queueEmail({
+        template: 'payment_failed',
+        recipient: admin.email,
+        recipientName: (admin.first_name && admin.last_name) ?  : admin.username || undefined,
+        subject: `Payment Failed - Action Required`,
+        data: {
+          companyName: payment.companies.name,
+          amount: payment.amount,
+          currency: payment.currency,
+          invoiceNumber: payment.invoices?.invoice_number,
+          errorMessage: payment.id
+        },
+        priority: 2, // High priority
+        companyId: payment.company_id,
+        contextType: 'payment',
+        contextId: payment.id
+      });
+    } catch (error) {
+      logger.error('Error sending payment failed email:', error);
+    }
+  }
+
+  /**
+   * Send VM created email
+   */
+  async sendVMCreatedEmail(vmId: number): Promise<void> {
+    try {
+      const vm = await database.virtual_machines.findUnique({
+        where: { id: vmId },
+        include: {
+          companies: true,
+          proxmox_clusters: true
+        }
+      });
+
+      if (!vm || !vm.companies) return;
+
+      const admin = await database.users.findFirst({
+        where: { company_id: vm.company_id, role: 'company_admin' }
+      });
+
+      if (!admin) return;
+
+      await this.queueEmail({
+        template: 'vm_created',
+        recipient: admin.email,
+        recipientName: (admin.first_name && admin.last_name) ?  : admin.username || undefined,
+        subject: `New VM Created: ${vm.name}`,
+        data: {
+          companyName: vm.companies.name,
+          vmName: vm.name,
+          vmId: vm.vmid,
+          cores: 0, // vm.cores
+          memory: 0, // vm.memory
+          disk: 0, // vm.disk
+          node: vm.node,
+          primaryIp: vm.primary_ip_internal || vm.primary_ip_external || 'Not assigned'
+        },
+        priority: 5,
+        companyId: vm.company_id,
+        contextType: 'vm',
+        contextId: vm.id
+      });
+    } catch (error) {
+      logger.error('Error sending VM created email:', error);
+    }
+  }
+
+  /**
+   * Send quota warning email
+   */
+  async sendQuotaWarningEmail(companyId: number, quotaType: string, currentUsage: number, limit: number): Promise<void> {
+    try {
+      const company = await database.companies.findUnique({
+        where: { id: companyId }
+      });
+
+      if (!company) return;
+
+      const admin = await database.users.findFirst({
+        where: { company_id: companyId, role: 'company_admin' }
+      });
+
+      if (!admin) return;
+
+      const percentage = Math.round((currentUsage / limit) * 100);
+
+      await this.queueEmail({
+        template: 'quota_warning',
+        recipient: admin.email,
+        recipientName: (admin.first_name && admin.last_name) ?  : admin.username || undefined,
+        subject: `Quota Warning: ${quotaType} at ${percentage}%`,
+        data: {
+          companyName: company.name,
+          quotaType,
+          currentUsage,
+          limit,
+          percentage,
+          remaining: limit - currentUsage
+        },
+        priority: 2,
+        companyId,
+        contextType: 'quota_warning'
+      });
+    } catch (error) {
+      logger.error('Error sending quota warning email:', error);
+    }
+  }
+
+  /**
+   * Send SSL certificate expiring email
+   */
+  async sendSSLExpiringEmail(mappingId: number): Promise<void> {
+    try {
+      const mapping = await database.company_url_mappings.findUnique({
+        where: { id: mappingId },
+        include: { companies: true }
+      });
+
+      if (!mapping || !mapping.companies) return;
+
+      const admin = await database.users.findFirst({
+        where: { company_id: mapping.company_id, role: 'company_admin' }
+      });
+
+      if (!admin) return;
+
+      const expiryDate = mapping.ssl_certificate;
+      const daysRemaining = expiryDate
+        ? Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        : 0;
+
+      await this.queueEmail({
+        template: 'ssl_expiring',
+        recipient: admin.email,
+        recipientName: (admin.first_name && admin.last_name) ?  : admin.username || undefined,
+        subject: `SSL Certificate Expiring in ${daysRemaining} days - ${mapping.domain}`,
+        data: {
+          companyName: mapping.companies.name,
+          domain: mapping.domain,
+          expiryDate,
+          daysRemaining
+        },
+        priority: 2,
+        companyId: mapping.company_id,
+        contextType: 'ssl_mapping',
+        contextId: mapping.id
+      });
+    } catch (error) {
+      logger.error('Error sending SSL expiring email:', error);
+    }
+  }
+
+  /**
+   * Send backup failed email
+   */
+  async sendBackupFailedEmail(backupHistoryId: number): Promise<void> {
+    try {
+      const backup = await database.backup_history.findUnique({
+        where: { id: backupHistoryId },
+        include: {
+          virtual_machines: {
+            include: { companies: true }
+          }
+        }
+      });
+
+      if (!backup || !backup.virtual_machines || !backup.virtual_machines.companies) return;
+
+      const admin = await database.users.findFirst({
+        where: {
+          company_id: backup.virtual_machines.company_id,
+          role: 'company_admin'
+        }
+      });
+
+      if (!admin) return;
+
+      await this.queueEmail({
+        template: 'backup_failed',
+        recipient: admin.email,
+        recipientName: (admin.first_name && admin.last_name) ?  : admin.username || undefined,
+        subject: `Backup Failed: ${backup.virtual_machines.name}`,
+        data: {
+          companyName: backup.virtual_machines.companies.name,
+          vmName: backup.virtual_machines.name,
+          backupDate: new Date() // backup.created_at,
+        },
+        priority: 2,
+        companyId: backup.virtual_machines.company_id,
+        contextType: 'backup',
+        contextId: backup.id
+      });
+    } catch (error) {
+      logger.error('Error sending backup failed email:', error);
+    }
+  }
+
+  /**
+   * Send welcome email to new user
+   */
+  async sendWelcomeEmail(userId: number): Promise<void> {
+    try {
+      const user = await database.users.findUnique({
+        where: { id: userId },
+        include: { companies: true }
+      });
+
+      if (!user) return;
+
+      await this.queueEmail({
+        template: 'welcome',
+        recipient: user.email,
+        recipientName: user.first_name || user.username || undefined,
+        subject: 'Welcome to Proxmox Multi-Tenant Platform',
+        data: {
+          userName: user.first_name || user.username,
+          userEmail: user.email,
+          companyName: user.companies?.name,
+          role: user.role,
+          loginUrl: process.env.APP_URL || 'http://localhost:3000'
+        },
+        priority: 4,
+        companyId: user.company_id || undefined,
+        userId: user.id
+      });
+    } catch (error) {
+      logger.error('Error sending welcome email:', error);
+    }
+  }
+
+  /**
+   * Send password reset email
+   */
+  async sendPasswordResetEmail(userId: number, resetToken: string): Promise<void> {
+    try {
+      const user = await database.users.findUnique({
+        where: { id: userId }
+      });
+
+      if (!user) return;
+
+      const resetUrl = `${process.env.APP_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+
+      await this.queueEmail({
+        template: 'password_reset',
+        recipient: user.email,
+        recipientName: user.first_name || user.username || undefined,
+        subject: 'Password Reset Request',
+        data: {
+          userName: user.first_name || user.username,
+          resetUrl,
+          expiresIn: '1 hour'
+        },
+        priority: 1, // Very high priority
+        userId: user.id
+      });
+    } catch (error) {
+      logger.error('Error sending password reset email:', error);
+    }
+  }
+
+  /**
+   * Send 2FA enabled confirmation email
+   */
+  async send2FAEnabledEmail(userId: number): Promise<void> {
+    try {
+      const user = await database.users.findUnique({
+        where: { id: userId }
+      });
+
+      if (!user) return;
+
+      await this.queueEmail({
+        template: '2fa_enabled',
+        recipient: user.email,
+        recipientName: user.first_name || user.username || undefined,
+        subject: 'Two-Factor Authentication Enabled',
+        data: {
+          userName: user.first_name || user.username,
+          enabledAt: new Date().toISOString()
+        },
+        priority: 3,
+        userId: user.id
+      });
+    } catch (error) {
+      logger.error('Error sending 2FA enabled email:', error);
+    }
+  }
+}
+
+// Singleton instance
+const emailAutomation = new EmailAutomationService();
+
+export default emailAutomation;
+export { emailAutomation, EmailAutomationService };

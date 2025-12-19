@@ -1145,3 +1145,697 @@ export const getArticleChangelog = async (req: AuthRequest, res: Response): Prom
     });
   }
 };
+// FAQ CRUD Functions
+
+/**
+ * Get all FAQs (admin view with unpublished FAQs)
+ */
+export const getFAQs = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Not authenticated' });
+      return;
+    }
+
+    // Only super_admin and company_admin can manage FAQs
+    if (!['super_admin', 'company_admin'].includes(user.role)) {
+      res.status(403).json({ success: false, message: 'Insufficient permissions' });
+      return;
+    }
+
+    const faqs = await prisma.help_faqs.findMany({
+      include: {
+        help_categories: {
+          select: {
+            id: true,
+            name: true,
+            slug: true
+          }
+        }
+      },
+      orderBy: [
+        { display_order: 'asc' },
+        { created_at: 'desc' }
+      ]
+    });
+
+    res.json(serializeBigInt({
+      success: true,
+      data: faqs
+    }));
+  } catch (error) {
+    logger.error('Get FAQs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch FAQs'
+    });
+  }
+};
+
+/**
+ * Get single FAQ by ID
+ */
+export const getFAQById = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Not authenticated' });
+      return;
+    }
+
+    if (!['super_admin', 'company_admin'].includes(user.role)) {
+      res.status(403).json({ success: false, message: 'Insufficient permissions' });
+      return;
+    }
+
+    const { id } = req.params;
+
+    const faq = await prisma.help_faqs.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        help_categories: {
+          select: {
+            id: true,
+            name: true,
+            slug: true
+          }
+        }
+      }
+    });
+
+    if (!faq) {
+      res.status(404).json({
+        success: false,
+        message: 'FAQ not found'
+      });
+      return;
+    }
+
+    res.json(serializeBigInt({
+      success: true,
+      data: faq
+    }));
+  } catch (error) {
+    logger.error('Get FAQ by ID error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch FAQ'
+    });
+  }
+};
+
+/**
+ * Create new FAQ
+ */
+export const createFAQ = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Not authenticated' });
+      return;
+    }
+
+    if (!['super_admin', 'company_admin'].includes(user.role)) {
+      res.status(403).json({ success: false, message: 'Insufficient permissions' });
+      return;
+    }
+
+    const {
+      category_id,
+      question,
+      answer,
+      page_context,
+      feature_tag,
+      display_order,
+      is_published
+    } = req.body;
+
+    // Validation
+    if (!category_id || !question || !answer) {
+      res.status(400).json({
+        success: false,
+        message: 'Category, question, and answer are required'
+      });
+      return;
+    }
+
+    const faq = await prisma.help_faqs.create({
+      data: {
+        category_id: parseInt(category_id),
+        question,
+        answer,
+        page_context: page_context || null,
+        feature_tag: feature_tag || null,
+        display_order: display_order || 0,
+        is_published: is_published || false,
+        // created_by: user.id,
+        // updated_by: user.id
+      },
+      include: {
+        help_categories: {
+          select: {
+            id: true,
+            name: true,
+            slug: true
+          }
+        }
+      }
+    });
+
+    res.status(201).json(serializeBigInt({
+      success: true,
+      message: 'FAQ created successfully',
+      data: faq
+    }));
+  } catch (error) {
+    logger.error('Create FAQ error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create FAQ'
+    });
+  }
+};
+
+/**
+ * Update FAQ
+ */
+export const updateFAQ = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Not authenticated' });
+      return;
+    }
+
+    if (!['super_admin', 'company_admin'].includes(user.role)) {
+      res.status(403).json({ success: false, message: 'Insufficient permissions' });
+      return;
+    }
+
+    const { id } = req.params;
+    const {
+      category_id,
+      question,
+      answer,
+      page_context,
+      feature_tag,
+      display_order,
+      is_published
+    } = req.body;
+
+    const existingFAQ = await prisma.help_faqs.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!existingFAQ) {
+      res.status(404).json({
+        success: false,
+        message: 'FAQ not found'
+      });
+      return;
+    }
+
+    const faq = await prisma.help_faqs.update({
+      where: { id: parseInt(id) },
+      data: {
+        ...(category_id && { category_id: parseInt(category_id) }),
+        ...(question && { question }),
+        ...(answer && { answer }),
+        ...(page_context !== undefined && { page_context }),
+        ...(feature_tag !== undefined && { feature_tag }),
+        ...(display_order !== undefined && { display_order }),
+        ...(is_published !== undefined && { is_published }),
+        // updated_by: user.id,
+        updated_at: new Date()
+      },
+      include: {
+        help_categories: {
+          select: {
+            id: true,
+            name: true,
+            slug: true
+          }
+        }
+      }
+    });
+
+    res.json(serializeBigInt({
+      success: true,
+      message: 'FAQ updated successfully',
+      data: faq
+    }));
+  } catch (error) {
+    logger.error('Update FAQ error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update FAQ'
+    });
+  }
+};
+
+/**
+ * Delete FAQ
+ */
+export const deleteFAQ = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Not authenticated' });
+      return;
+    }
+
+    if (!['super_admin', 'company_admin'].includes(user.role)) {
+      res.status(403).json({ success: false, message: 'Insufficient permissions' });
+      return;
+    }
+
+    const { id } = req.params;
+
+    const existingFAQ = await prisma.help_faqs.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!existingFAQ) {
+      res.status(404).json({
+        success: false,
+        message: 'FAQ not found'
+      });
+      return;
+    }
+
+    await prisma.help_faqs.delete({
+      where: { id: parseInt(id) }
+    });
+
+    res.json({
+      success: true,
+      message: 'FAQ deleted successfully'
+    });
+  } catch (error) {
+    logger.error('Delete FAQ error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete FAQ'
+    });
+  }
+};
+
+/**
+ * Publish FAQ
+ */
+export const publishFAQ = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Not authenticated' });
+      return;
+    }
+
+    if (!['super_admin', 'company_admin'].includes(user.role)) {
+      res.status(403).json({ success: false, message: 'Insufficient permissions' });
+      return;
+    }
+
+    const { id } = req.params;
+
+    const faq = await prisma.help_faqs.update({
+      where: { id: parseInt(id) },
+      data: {
+        is_published: true,
+        // updated_by: user.id,
+        updated_at: new Date()
+      }
+    });
+
+    res.json(serializeBigInt({
+      success: true,
+      message: 'FAQ published successfully',
+      data: faq
+    }));
+  } catch (error) {
+    logger.error('Publish FAQ error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to publish FAQ'
+    });
+  }
+};
+
+/**
+ * Unpublish FAQ
+ */
+export const unpublishFAQ = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Not authenticated' });
+      return;
+    }
+
+    if (!['super_admin', 'company_admin'].includes(user.role)) {
+      res.status(403).json({ success: false, message: 'Insufficient permissions' });
+      return;
+    }
+
+    const { id } = req.params;
+
+    const faq = await prisma.help_faqs.update({
+      where: { id: parseInt(id) },
+      data: {
+        is_published: false,
+        // updated_by: user.id,
+        updated_at: new Date()
+      }
+    });
+
+    res.json(serializeBigInt({
+      success: true,
+      message: 'FAQ unpublished successfully',
+      data: faq
+    }));
+  } catch (error) {
+    logger.error('Unpublish FAQ error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to unpublish FAQ'
+    });
+  }
+};
+
+// ============================================================================
+// CATEGORY CRUD Functions
+// ============================================================================
+
+/**
+ * Get all categories (admin view)
+ */
+export const getAdminCategories = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Not authenticated' });
+      return;
+    }
+
+    if (!['super_admin', 'company_admin'].includes(user.role)) {
+      res.status(403).json({ success: false, message: 'Insufficient permissions' });
+      return;
+    }
+
+    const categories = await prisma.help_categories.findMany({
+      include: {
+        _count: {
+          select: {
+            help_articles: true,
+            help_faqs: true
+          }
+        }
+      },
+      orderBy: {
+        display_order: 'asc'
+      }
+    });
+
+    res.json(serializeBigInt({
+      success: true,
+      data: categories
+    }));
+  } catch (error) {
+    logger.error('Get categories error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch categories'
+    });
+  }
+};
+
+/**
+ * Get single category by ID
+ */
+export const getCategoryById = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Not authenticated' });
+      return;
+    }
+
+    if (!['super_admin', 'company_admin'].includes(user.role)) {
+      res.status(403).json({ success: false, message: 'Insufficient permissions' });
+      return;
+    }
+
+    const { id } = req.params;
+
+    const category = await prisma.help_categories.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        _count: {
+          select: {
+            help_articles: true,
+            help_faqs: true
+          }
+        }
+      }
+    });
+
+    if (!category) {
+      res.status(404).json({
+        success: false,
+        message: 'Category not found'
+      });
+      return;
+    }
+
+    res.json(serializeBigInt({
+      success: true,
+      data: category
+    }));
+  } catch (error) {
+    logger.error('Get category by ID error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch category'
+    });
+  }
+};
+
+/**
+ * Create new category
+ */
+export const createCategory = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Not authenticated' });
+      return;
+    }
+
+    if (!['super_admin', 'company_admin'].includes(user.role)) {
+      res.status(403).json({ success: false, message: 'Insufficient permissions' });
+      return;
+    }
+
+    const {
+      name,
+      slug,
+      description,
+      icon,
+      display_order,
+      is_active
+    } = req.body;
+
+    // Validation
+    if (!name || !slug) {
+      res.status(400).json({
+        success: false,
+        message: 'Name and slug are required'
+      });
+      return;
+    }
+
+    // Check if slug already exists
+    const existingCategory = await prisma.help_categories.findUnique({
+      where: { slug }
+    });
+
+    if (existingCategory) {
+      res.status(400).json({
+        success: false,
+        message: 'A category with this slug already exists'
+      });
+      return;
+    }
+
+    const category = await prisma.help_categories.create({
+      data: {
+        name,
+        slug,
+        description: description || null,
+        icon: icon || null,
+        display_order: display_order || 0,
+        is_active: is_active !== undefined ? is_active : true
+      }
+    });
+
+    res.status(201).json(serializeBigInt({
+      success: true,
+      message: 'Category created successfully',
+      data: category
+    }));
+  } catch (error) {
+    logger.error('Create category error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create category'
+    });
+  }
+};
+
+/**
+ * Update category
+ */
+export const updateCategory = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Not authenticated' });
+      return;
+    }
+
+    if (!['super_admin', 'company_admin'].includes(user.role)) {
+      res.status(403).json({ success: false, message: 'Insufficient permissions' });
+      return;
+    }
+
+    const { id } = req.params;
+    const {
+      name,
+      slug,
+      description,
+      icon,
+      display_order,
+      is_active
+    } = req.body;
+
+    const existingCategory = await prisma.help_categories.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!existingCategory) {
+      res.status(404).json({
+        success: false,
+        message: 'Category not found'
+      });
+      return;
+    }
+
+    // Check if new slug conflicts with existing category
+    if (slug && slug !== existingCategory.slug) {
+      const slugConflict = await prisma.help_categories.findUnique({
+        where: { slug }
+      });
+
+      if (slugConflict) {
+        res.status(400).json({
+          success: false,
+          message: 'A category with this slug already exists'
+        });
+        return;
+      }
+    }
+
+    const category = await prisma.help_categories.update({
+      where: { id: parseInt(id) },
+      data: {
+        ...(name && { name }),
+        ...(slug && { slug }),
+        ...(description !== undefined && { description }),
+        ...(icon !== undefined && { icon }),
+        ...(display_order !== undefined && { display_order }),
+        ...(is_active !== undefined && { is_active }),
+        updated_at: new Date()
+      }
+    });
+
+    res.json(serializeBigInt({
+      success: true,
+      message: 'Category updated successfully',
+      data: category
+    }));
+  } catch (error) {
+    logger.error('Update category error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update category'
+    });
+  }
+};
+
+/**
+ * Delete category
+ */
+export const deleteCategory = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Not authenticated' });
+      return;
+    }
+
+    if (!['super_admin', 'company_admin'].includes(user.role)) {
+      res.status(403).json({ success: false, message: 'Insufficient permissions' });
+      return;
+    }
+
+    const { id } = req.params;
+
+    const existingCategory = await prisma.help_categories.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        _count: {
+          select: {
+            help_articles: true,
+            help_faqs: true
+          }
+        }
+      }
+    });
+
+    if (!existingCategory) {
+      res.status(404).json({
+        success: false,
+        message: 'Category not found'
+      });
+      return;
+    }
+
+    // Check if category has articles or FAQs
+    const articleCount = existingCategory._count.help_articles;
+    const faqCount = existingCategory._count.help_faqs;
+
+    if (articleCount > 0 || faqCount > 0) {
+      res.status(400).json({
+        success: false,
+        message: `Cannot delete category with ${articleCount} articles and ${faqCount} FAQs. Please reassign or delete them first.`
+      });
+      return;
+    }
+
+    await prisma.help_categories.delete({
+      where: { id: parseInt(id) }
+    });
+
+    res.json({
+      success: true,
+      message: 'Category deleted successfully'
+    });
+  } catch (error) {
+    logger.error('Delete category error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete category'
+    });
+  }
+};

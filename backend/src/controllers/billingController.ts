@@ -396,9 +396,9 @@ export const getAllCompaniesBilling = async (req: AuthRequest, res: Response): P
       if (company.company_billing && company.company_billing.pricing_plans) {
         const plan = company.company_billing.pricing_plans;
         estimatedMonthlyCost = 
-          (totalCpu * (plan.overage_cpu_core_price || 0)) +
-          (totalMemoryGb * (plan.overage_memory_gb_price || 0)) +
-          (totalStorageGb * (plan.overage_storage_gb_price || 0));
+          (totalCpu * (Number(plan.overage_cpu_core_price) || 0)) +
+          (totalMemoryGb * (Number(plan.overage_memory_gb_price) || 0)) +
+          (totalStorageGb * (Number(plan.overage_storage_gb_price) || 0));
       }
 
       return {

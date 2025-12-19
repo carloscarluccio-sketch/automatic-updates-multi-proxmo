@@ -4,7 +4,8 @@ import {
   getInvoiceDetail,
   updateInvoiceStatus,
   sendInvoice,
-  generateInvoicePDF,
+  generateInvoicePDFController,
+  downloadInvoicePDF,
   getInvoiceStatistics,
   deleteDraftInvoice,
 } from '../controllers/invoicesController';
@@ -25,7 +26,8 @@ router.get('/invoices/:invoiceId', getInvoiceDetail);
 // Invoice actions
 router.patch('/invoices/:invoiceId/status', updateInvoiceStatus);
 router.post('/invoices/:invoiceId/send', sendInvoice);
-router.post('/invoices/:invoiceId/generate-pdf', generateInvoicePDF);
+router.post('/invoices/:invoiceId/generate-pdf', generateInvoicePDFController);
+router.get('/invoices/:invoiceId/download-pdf', downloadInvoicePDF);
 router.delete('/invoices/:invoiceId', deleteDraftInvoice);
 
 export default router;

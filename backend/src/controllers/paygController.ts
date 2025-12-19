@@ -4,6 +4,7 @@ import { AuthRequest } from '../middlewares/auth';
 import prisma from '../config/database';
 import logger from '../utils/logger';
 import { Decimal } from '@prisma/client/runtime/library';
+import { sendBudgetThresholdAlert } from '../services/emailNotificationService';
 
 /**
  * Helper to convert BigInt values to strings for JSON serialization
@@ -440,6 +441,20 @@ export const getCostAlerts = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    // Get company budget threshold settings
+    const company = await prisma.companies.findUnique({
+      where: { id: Number(companyId) },
+      select: {
+        budget_threshold: true,
+        last_budget_alert_sent: true
+      }
+    });
+
+    if (!company) {
+      res.status(404).json({ success: false, message: 'Company not found' });
+      return;
+    }
+
     // Get current month total
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -457,26 +472,69 @@ export const getCostAlerts = async (req: AuthRequest, res: Response): Promise<vo
     });
 
     const currentCost = currentTotal._sum.total_cost || new Decimal(0);
-
-    // TODO: Get company budget/threshold settings
-    const monthlyBudget = new Decimal(1000); // Placeholder
+    const monthlyBudget = company.budget_threshold ? new Decimal(company.budget_threshold) : new Decimal(1000);
     const warningThreshold = monthlyBudget.mul(0.8);
     const criticalThreshold = monthlyBudget.mul(0.95);
 
     const alerts = [];
+    const currentCostFloat = parseFloat(currentCost.toString());
+    const monthlyBudgetFloat = parseFloat(monthlyBudget.toString());
+    const percentageUsed = (currentCostFloat / monthlyBudgetFloat) * 100;
+
+    // Check if we should send email alerts
+    // Only send once per day to avoid spam
+    const lastAlertSent = company.last_budget_alert_sent;
+    const shouldSendAlert = !lastAlertSent ||
+      (now.getTime() - new Date(lastAlertSent).getTime() > 24 * 60 * 60 * 1000); // 24 hours
 
     if (currentCost.greaterThanOrEqualTo(criticalThreshold)) {
       alerts.push({
         level: 'critical',
         message: `Current usage ($${currentCost.toFixed(2)}) has exceeded 95% of monthly budget ($${monthlyBudget.toFixed(2)})`,
-        percentage: currentCost.div(monthlyBudget).mul(100).toFixed(1)
+        percentage: percentageUsed.toFixed(1)
       });
+
+      // Send email alert if threshold just crossed
+      if (shouldSendAlert) {
+        await sendBudgetThresholdAlert(
+          Number(companyId),
+          currentCostFloat,
+          monthlyBudgetFloat,
+          percentageUsed
+        );
+
+        // Update last alert sent timestamp
+        await prisma.companies.update({
+          where: { id: Number(companyId) },
+          data: { last_budget_alert_sent: now }
+        });
+
+        logger.info(`Budget alert sent for company ${companyId}: ${percentageUsed.toFixed(1)}% of budget used`);
+      }
     } else if (currentCost.greaterThanOrEqualTo(warningThreshold)) {
       alerts.push({
         level: 'warning',
         message: `Current usage ($${currentCost.toFixed(2)}) has exceeded 80% of monthly budget ($${monthlyBudget.toFixed(2)})`,
-        percentage: currentCost.div(monthlyBudget).mul(100).toFixed(1)
+        percentage: percentageUsed.toFixed(1)
       });
+
+      // Send email alert if threshold just crossed
+      if (shouldSendAlert && percentageUsed >= 80) {
+        await sendBudgetThresholdAlert(
+          Number(companyId),
+          currentCostFloat,
+          monthlyBudgetFloat,
+          percentageUsed
+        );
+
+        // Update last alert sent timestamp
+        await prisma.companies.update({
+          where: { id: Number(companyId) },
+          data: { last_budget_alert_sent: now }
+        });
+
+        logger.info(`Budget warning sent for company ${companyId}: ${percentageUsed.toFixed(1)}% of budget used`);
+      }
     }
 
     res.json({
@@ -484,7 +542,7 @@ export const getCostAlerts = async (req: AuthRequest, res: Response): Promise<vo
       data: {
         current_cost: currentCost,
         monthly_budget: monthlyBudget,
-        percentage_used: currentCost.div(monthlyBudget).mul(100),
+        percentage_used: percentageUsed,
         alerts: alerts
       }
     });

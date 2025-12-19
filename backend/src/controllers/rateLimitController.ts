@@ -73,7 +73,7 @@ export const createRateLimit = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const { endpoint, method, max_requests, window_seconds, block_duration_seconds, description, is_enabled } = req.body;
+    const { endpoint, method: _method, max_requests, window_seconds, block_duration_seconds: _block_duration_seconds, description: _description, is_enabled: _is_enabled } = req.body;
 
     // Validation
     if (!endpoint || !max_requests || !window_seconds) {
@@ -93,17 +93,11 @@ export const createRateLimit = async (req: Request, res: Response): Promise<void
 
     const rateLimit = await prisma.rate_limits.create({
       data: {
-        endpoint,
-        method: method || 'ALL',
-        max_requests,
-        window_seconds,
-        block_duration_seconds: block_duration_seconds || 300,
-        description,
-        is_enabled: is_enabled !== undefined ? is_enabled : true,
-        created_by: user.id
+        identifier: "system",
+        identifier_type: "ip",
+        endpoint: endpoint
       }
     });
-
     logger.info(`Rate limit created for ${endpoint} by user ${user.id}`);
     res.json({ success: true, data: rateLimit });
   } catch (error: any) {

@@ -267,6 +267,90 @@ function evaluateCondition(current: number, operator: string, threshold: number)
 /**
  * Trigger alert and create history entry
  */
+/**
+ * Send webhook notification for alert
+ */
+async function sendWebhookNotification(
+  rule: any,
+  target: any,
+  currentValue: number,
+  message: string
+): Promise<void> {
+  try {
+    // Get company webhook URL
+    const company = await prisma.companies.findUnique({
+      where: { id: rule.company_id },
+      select: { alert_webhook_url: true, name: true }
+    });
+
+    if (!company || !company.alert_webhook_url) {
+      return; // No webhook configured
+    }
+
+    // Prepare webhook payload (Slack-compatible format)
+    const payload = {
+      text: `🚨 Alert: ${rule.name}`,
+      attachments: [
+        {
+          color: rule.severity === 'critical' ? 'danger' : rule.severity === 'warning' ? 'warning' : 'good',
+          fields: [
+            {
+              title: 'Company',
+              value: company.name,
+              short: true
+            },
+            {
+              title: 'Severity',
+              value: rule.severity.toUpperCase(),
+              short: true
+            },
+            {
+              title: 'Resource',
+              value: `${target.target_type}: ${target.name}`,
+              short: false
+            },
+            {
+              title: 'Metric',
+              value: `${rule.metric_name} = ${currentValue.toFixed(2)}`,
+              short: true
+            },
+            {
+              title: 'Threshold',
+              value: `${rule.condition_operator} ${rule.threshold_value}`,
+              short: true
+            },
+            {
+              title: 'Message',
+              value: message,
+              short: false
+            }
+          ],
+          footer: 'Proxmox Multi-Tenant Platform',
+          ts: Math.floor(Date.now() / 1000)
+        }
+      ]
+    };
+
+    // Send webhook
+    const response = await fetch(company.alert_webhook_url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+      logger.info(`Webhook notification sent for alert ${rule.name}`);
+    } else {
+      logger.error(`Webhook notification failed: ${response.status} ${response.statusText}`);
+    }
+  } catch (error: any) {
+    logger.error(`Error sending webhook notification:`, error);
+  }
+}
+
+
 async function triggerAlert(rule: AlertRule, target: any): Promise<void> {
   try {
     // Get current metric value
@@ -309,7 +393,10 @@ async function triggerAlert(rule: AlertRule, target: any): Promise<void> {
       await sendEmailNotifications(rule, target, currentValue, message);
     }
 
-    // TODO: Send Slack/webhook notifications if enabled
+    // Send webhook notifications if enabled
+    if (rule.notify_webhook || rule.company_id) {
+      await sendWebhookNotification(rule, target, currentValue, message);
+    }
   } catch (error: any) {
     logger.error(`Failed to trigger alert for rule ${rule.id}:`, error.message);
   }

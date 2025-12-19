@@ -59,8 +59,8 @@ export const globalSearch = async (req: Request, res: Response): Promise<void> =
         where: {
           OR: [
             { name: { contains: query as string } },
-            { email: { contains: query as string } },
-            { phone: { contains: query as string } }
+            { primary_email: { contains: query as string } },
+            { contact_phone: { contains: query as string } }
           ]
         },
         take: maxLimit
@@ -152,7 +152,7 @@ export const globalSearch = async (req: Request, res: Response): Promise<void> =
       clusters: results.clusters.length,
       projects: results.projects.length,
       tickets: results.tickets.length,
-      total: Object.values(results).reduce((sum: number, arr: any[]) => sum + arr.length, 0)
+      total: Object.values(results).reduce((sum: number, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0 as number)
     };
 
     logger.info(`User ${user.id} searched for "${query}" - ${totals.total} results`);

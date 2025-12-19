@@ -16,6 +16,7 @@ import {
 import LockIcon from '@mui/icons-material/Lock';
 import SecurityIcon from '@mui/icons-material/Security';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import { getInitialRoute } from "../utils/isMobile";
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { authService } from '../services/authService';
 import { useAuthStore } from '../store/authStore';
@@ -84,7 +85,7 @@ export const LoginPage: React.FC = () => {
 
       // Successful login
       setUser(response.data.user);
-      navigate('/dashboard');
+      navigate(getInitialRoute());
     } catch (err: any) {
       const message = err.response?.data?.message || 'Login failed';
 

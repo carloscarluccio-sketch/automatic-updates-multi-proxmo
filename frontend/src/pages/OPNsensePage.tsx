@@ -165,7 +165,7 @@ export const OPNsensePage: React.FC = () => {
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
-                onClick={() => {/* TODO: Open create dialog */}}
+                onClick={() => setSnackbar({ open: true, message: 'OPNsense deployment is available through the VM creation workflow. Go to VMs > Create VM and select an OPNsense template.', severity: 'info' as 'success' | 'error' })}
               >
                 Deploy OPNsense
               </Button>

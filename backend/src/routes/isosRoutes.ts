@@ -18,7 +18,7 @@ const upload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024 * 1024, // 10GB max
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     if (file.originalname.toLowerCase().endsWith('.iso')) {
       cb(null, true);
     } else {

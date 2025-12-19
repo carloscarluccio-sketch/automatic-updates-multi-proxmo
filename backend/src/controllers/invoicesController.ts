@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import prisma from '../config/database';
 import logger from '../utils/logger';
+import { generateInvoicePDF, streamInvoicePDF } from '../services/pdfGenerationService';
+import { sendInvoiceEmail } from '../services/emailNotificationService';
 
 /**
  * Get list of invoices for a company
@@ -187,7 +189,7 @@ export const updateInvoiceStatus = async (req: Request, res: Response) => {
 };
 
 /**
- * Mark invoice as sent
+ * Mark invoice as sent (with email sending capability)
  */
 export const sendInvoice = async (req: Request, res: Response) => {
   try {
@@ -196,6 +198,14 @@ export const sendInvoice = async (req: Request, res: Response) => {
 
     const invoice = await prisma.invoices.findUnique({
       where: { id: parseInt(invoiceId) },
+      include: {
+        companies: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
 
     if (!invoice) {
@@ -203,6 +213,14 @@ export const sendInvoice = async (req: Request, res: Response) => {
         success: false,
         message: 'Invoice not found',
       });
+    }
+
+    // Generate PDF if not already generated
+    if (!invoice.pdf_generated) {
+      const pdfResult = await generateInvoicePDF(parseInt(invoiceId));
+      if (!pdfResult.success) {
+        logger.error(`Failed to generate PDF for invoice ${invoiceId}:`, pdfResult.error);
+      }
     }
 
     // Update invoice
@@ -215,7 +233,17 @@ export const sendInvoice = async (req: Request, res: Response) => {
       },
     });
 
-    // TODO: Implement actual email sending (requires email service configuration)
+    // Send invoice email with PDF attachment
+    try {
+      const emailResult = await sendInvoiceEmail(parseInt(invoiceId));
+      if (!emailResult.success) {
+        logger.warn("Failed to send invoice email: " + emailResult.message);
+      }
+    } catch (emailError) {
+      logger.error('Error sending invoice email:', emailError);
+      // Don't fail the sendInvoice operation if email fails
+    }
+
     logger.info(`Invoice ${invoiceId} marked as sent to ${email}`, {
       invoiceId: parseInt(invoiceId),
       email,
@@ -237,21 +265,17 @@ export const sendInvoice = async (req: Request, res: Response) => {
 };
 
 /**
- * Generate invoice PDF (placeholder - requires PDF library)
+ * Generate invoice PDF
  */
-export const generateInvoicePDF = async (req: Request, res: Response) => {
+export const generateInvoicePDFController = async (req: Request, res: Response) => {
   try {
     const { invoiceId } = req.params;
 
     const invoice = await prisma.invoices.findUnique({
       where: { id: parseInt(invoiceId) },
-      include: {
-        companies: true,
-        invoice_line_items: {
-          include: {
-            virtual_machines: true,
-          },
-        },
+      select: {
+        id: true,
+        invoice_number: true,
       },
     });
 
@@ -262,24 +286,24 @@ export const generateInvoicePDF = async (req: Request, res: Response) => {
       });
     }
 
-    // TODO: Implement PDF generation using a library like pdfkit or puppeteer
-    // For now, just mark as PDF generated
-    await prisma.invoices.update({
-      where: { id: parseInt(invoiceId) },
-      data: {
-        pdf_generated: true,
-        pdf_file_path: `/invoices/${invoice.invoice_number}.pdf`,
-      },
-    });
+    const result = await generateInvoicePDF(parseInt(invoiceId));
 
-    logger.info(`Invoice ${invoiceId} PDF generation requested`, {
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: result.error || 'Failed to generate PDF',
+      });
+    }
+
+    logger.info(`Invoice ${invoiceId} PDF generated successfully`, {
       invoiceId: parseInt(invoiceId),
       invoice_number: invoice.invoice_number,
+      file_path: result.filePath,
     });
 
     return res.json({
       success: true,
-      message: 'PDF generation placeholder - implementation pending',
+      message: 'PDF generated successfully',
       data: {
         invoice_number: invoice.invoice_number,
         pdf_path: `/invoices/${invoice.invoice_number}.pdf`,
@@ -292,6 +316,45 @@ export const generateInvoicePDF = async (req: Request, res: Response) => {
       message: 'Failed to generate invoice PDF',
       error: error.message,
     });
+  }
+};
+
+/**
+ * Download invoice PDF
+ */
+// @ts-ignore - streamInvoicePDF handles the response
+export const downloadInvoicePDF = async (req: Request, res: Response) => {
+  try {
+    const { invoiceId } = req.params;
+
+    const invoice = await prisma.invoices.findUnique({
+      where: { id: parseInt(invoiceId) },
+      select: {
+        id: true,
+        invoice_number: true,
+      },
+    });
+
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invoice not found',
+      });
+    }
+
+    // Stream PDF to response
+    await streamInvoicePDF(parseInt(invoiceId), res);
+  } catch (error: any) {
+    return;
+    logger.error('Download invoice PDF error:', error);
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to download invoice PDF',
+        error: error.message,
+      });
+    }
+    return;
   }
 };
 

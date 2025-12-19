@@ -1,0 +1,418 @@
+import { Request, Response } from 'express';
+import Stripe from 'stripe';
+import database from '../config/database';
+import logger from '../utils/logger';
+
+// Initialize Stripe (will be set when config is loaded)
+let stripe: Stripe | null = null;
+
+async function getStripeInstance(): Promise<Stripe | null> {
+  if (stripe) return stripe;
+
+  try {
+    const config = await database.global_settings.findFirst({
+      where: { setting_key: 'stripe_config' }
+    });
+
+    if (config?.setting_value_json) {
+      const stripeConfig = JSON.parse(config.setting_value_json as string);
+      if (stripeConfig.secret_key) {
+        stripe = new Stripe(stripeConfig.secret_key, {
+          apiVersion: '2025-12-15.clover'
+        });
+        return stripe;
+      }
+    }
+  } catch (error) {
+    logger.error('Error initializing Stripe:', error);
+  }
+
+  return null;
+}
+
+/**
+ * Stripe Webhook Handler
+ * Handles payment events from Stripe
+ */
+export async function handleStripeWebhook(req: Request, res: Response): Promise<void> {
+  const sig = req.headers['stripe-signature'] as string;
+
+  if (!sig) {
+    res.status(400).json({ error: 'No signature provided' });
+    return;
+  }
+
+  const stripeInstance = await getStripeInstance();
+  if (!stripeInstance) {
+    logger.error('Stripe not configured');
+    res.status(500).json({ error: 'Stripe not configured' });
+    return;
+  }
+
+  // Get webhook secret from config
+  const config = await database.global_settings.findFirst({
+    where: { setting_key: 'stripe_config' }
+    });
+
+  if (!config?.setting_value_json) {
+    res.status(500).json({ error: 'Stripe configuration not found' });
+    return;
+  }
+
+  const stripeConfig = JSON.parse(config.setting_value_json as string);
+  const webhookSecret = stripeConfig.webhook_secret;
+
+  if (!webhookSecret) {
+    logger.error('Webhook secret not configured');
+    res.status(500).json({ error: 'Webhook secret not configured' });
+    return;
+  }
+
+  let event: Stripe.Event;
+
+  try {
+    // Verify webhook signature
+    event = stripeInstance.webhooks.constructEvent(
+      req.body,
+      sig,
+      webhookSecret
+    );
+  } catch (err: any) {
+    logger.error('Webhook signature verification failed:', err.message);
+    res.status(400).json({ error: `Webhook Error: ${err.message}` });
+    return;
+  }
+
+  // Handle the event
+  try {
+    switch (event.type) {
+      case 'payment_intent.succeeded':
+        await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
+        break;
+
+      case 'payment_intent.payment_failed':
+        await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
+        break;
+
+      case 'customer.subscription.created':
+        await handleSubscriptionCreated(event.data.object as Stripe.Subscription);
+        break;
+
+      case 'customer.subscription.updated':
+        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        break;
+
+      case 'customer.subscription.deleted':
+        await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+        break;
+
+      case 'invoice.payment_succeeded':
+        await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice);
+        break;
+
+      case 'invoice.payment_failed':
+        await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
+        break;
+
+      default:
+        logger.info(`Unhandled event type: ${event.type}`);
+    }
+
+    res.json({ received: true });
+  } catch (error: any) {
+    logger.error('Error handling webhook event:', error);
+    res.status(500).json({ error: 'Webhook handler failed' });
+  }
+}
+
+/**
+ * Handle successful payment intent
+ */
+async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent): Promise<void> {
+  logger.info(`Payment succeeded: ${paymentIntent.id}`);
+
+  // Find company by customer ID
+  const customerId = typeof paymentIntent.customer === 'string' ? paymentIntent.customer : paymentIntent.customer?.id;
+
+  if (!customerId) {
+    logger.warn(`No customer ID found for payment intent ${paymentIntent.id}`);
+    return;
+  }
+
+  const company = await database.companies.findFirst({
+    where: {
+      company_billing: {
+        stripe_customer_id: customerId
+      }
+    }
+  });
+
+  if (!company) {
+    logger.warn(`Company not found for customer ${customerId}`);
+    return;
+  }
+
+  // TODO: billing_transactions table doesn't exist yet
+  // Commenting out until table is created
+  /*
+  await database.billing_transactions.create({
+    data: {
+      company_id: company.id,
+      amount: paymentIntent.amount / 100, // Convert from cents
+      payment_method: 'stripe',
+      status: 'completed',
+      transaction_type: 'payment',
+      description: paymentIntent.description || 'Payment received',
+      metadata: JSON.stringify({
+        payment_intent_id: paymentIntent.id,
+        latest_charge: paymentIntent.latest_charge
+      })
+    }
+  });
+  */
+
+  logger.info(`Payment received for company ${company.id} - billing_transactions table not yet implemented`);
+}
+
+/**
+ * Handle failed payment intent
+ */
+async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent): Promise<void> {
+  logger.error(`Payment failed: ${paymentIntent.id}`);
+
+  const customerId = typeof paymentIntent.customer === 'string' ? paymentIntent.customer : paymentIntent.customer?.id;
+
+  if (!customerId) return;
+
+  const company = await database.companies.findFirst({
+    where: {
+      company_billing: {
+        stripe_customer_id: customerId
+      }
+    }
+  });
+
+  if (!company) return;
+
+  // TODO: billing_transactions table doesn't exist yet
+  /*
+  await database.billing_transactions.create({
+    data: {
+      company_id: company.id,
+      amount: paymentIntent.amount / 100,
+      payment_method: 'stripe',
+      status: 'failed',
+      transaction_type: 'payment',
+      description: `Payment failed: ${paymentIntent.last_payment_error?.message || 'Unknown error'}`,
+      metadata: JSON.stringify({
+        payment_intent_id: paymentIntent.id,
+        error: paymentIntent.last_payment_error
+      })
+    }
+  });
+  */
+
+  logger.error(`Payment failed for company ${company.id} - billing_transactions table not yet implemented`);
+}
+
+/**
+ * Handle subscription created
+ */
+async function handleSubscriptionCreated(subscription: Stripe.Subscription): Promise<void> {
+  logger.info(`Subscription created: ${subscription.id}`);
+
+  const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id;
+
+  if (!customerId) return;
+
+  const company = await database.companies.findFirst({
+    where: {
+      company_billing: {
+        stripe_customer_id: customerId
+      }
+    }
+  });
+
+  if (!company) return;
+
+  // Get billing cycle anchor dates
+  const currentPeriodStart = subscription.billing_cycle_anchor
+    ? new Date(subscription.billing_cycle_anchor * 1000)
+    : new Date();
+
+  // Calculate period end (typically 30 days after start)
+  const currentPeriodEnd = new Date(currentPeriodStart);
+  currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+
+  // Update or create subscription record
+  // Using company_id as unique identifier since company_id_plan_id composite doesn't exist
+  const existingSub = await database.company_subscriptions.findFirst({
+    where: { company_id: company.id }
+  });
+
+  if (existingSub) {
+    await database.company_subscriptions.update({
+      where: { id: existingSub.id },
+      data: {
+        stripe_subscription_id: subscription.id,
+        status: subscription.status as any,
+        current_period_start: currentPeriodStart,
+        current_period_end: currentPeriodEnd
+      }
+    });
+  } else {
+    await database.company_subscriptions.create({
+      data: {
+        company_id: company.id,
+        plan_id: 1, // Default plan - should be updated based on subscription metadata
+        stripe_subscription_id: subscription.id,
+        status: subscription.status as any,
+        current_period_start: currentPeriodStart,
+        current_period_end: currentPeriodEnd
+      }
+    });
+  }
+}
+
+/**
+ * Handle subscription updated
+ */
+async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Promise<void> {
+  logger.info(`Subscription updated: ${subscription.id}`);
+
+  const existingSubscription = await database.company_subscriptions.findFirst({
+    where: { stripe_subscription_id: subscription.id }
+  });
+
+  if (!existingSubscription) {
+    // Treat as new subscription
+    await handleSubscriptionCreated(subscription);
+    return;
+  }
+
+  // Get billing cycle dates
+  const currentPeriodStart = subscription.billing_cycle_anchor
+    ? new Date(subscription.billing_cycle_anchor * 1000)
+    : new Date();
+
+  const currentPeriodEnd = new Date(currentPeriodStart);
+  currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+
+  // Update subscription status
+  await database.company_subscriptions.update({
+    where: { id: existingSubscription.id },
+    data: {
+      status: subscription.status as any,
+      current_period_start: currentPeriodStart,
+      current_period_end: currentPeriodEnd,
+      cancel_at_period_end: subscription.cancel_at_period_end || false
+    }
+  });
+}
+
+/**
+ * Handle subscription deleted/cancelled
+ */
+async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<void> {
+  logger.info(`Subscription deleted: ${subscription.id}`);
+
+  const existingSubscription = await database.company_subscriptions.findFirst({
+    where: { stripe_subscription_id: subscription.id }
+  });
+
+  if (!existingSubscription) return;
+
+  // Mark as cancelled
+  await database.company_subscriptions.update({
+    where: { id: existingSubscription.id },
+    data: {
+      status: 'cancelled',
+      cancelled_at: new Date()
+    }
+  });
+}
+
+/**
+ * Handle successful invoice payment
+ */
+async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<void> {
+  logger.info(`Invoice payment succeeded: ${invoice.id}`);
+
+  const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+
+  if (!customerId) return;
+
+  const company = await database.companies.findFirst({
+    where: {
+      company_billing: {
+        stripe_customer_id: customerId
+      }
+    }
+  });
+
+  if (!company) return;
+
+  // TODO: billing_transactions table doesn't exist yet
+  /*
+  await database.billing_transactions.create({
+    data: {
+      company_id: company.id,
+      amount: (invoice.amount_paid || 0) / 100,
+      payment_method: 'stripe',
+      status: 'completed',
+      transaction_type: 'subscription_payment',
+      description: `Invoice payment: ${invoice.number || invoice.id}`,
+      metadata: JSON.stringify({
+        invoice_id: invoice.id,
+        subscription_id: typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id,
+        period_start: invoice.period_start,
+        period_end: invoice.period_end
+      })
+    }
+  });
+  */
+
+  logger.info(`Invoice payment received for company ${company.id} - billing_transactions table not yet implemented`);
+}
+
+/**
+ * Handle failed invoice payment
+ */
+async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
+  logger.error(`Invoice payment failed: ${invoice.id}`);
+
+  const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+
+  if (!customerId) return;
+
+  const company = await database.companies.findFirst({
+    where: {
+      company_billing: {
+        stripe_customer_id: customerId
+      }
+    }
+  });
+
+  if (!company) return;
+
+  // TODO: billing_transactions table doesn't exist yet
+  /*
+  await database.billing_transactions.create({
+    data: {
+      company_id: company.id,
+      amount: (invoice.amount_due || 0) / 100,
+      payment_method: 'stripe',
+      status: 'failed',
+      transaction_type: 'subscription_payment',
+      description: `Invoice payment failed: ${invoice.number || invoice.id}`,
+      metadata: JSON.stringify({
+        invoice_id: invoice.id,
+        subscription_id: typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id,
+        last_payment_error: invoice.last_finalization_error
+      })
+    }
+  });
+  */
+
+  logger.error(`Invoice payment failed for company ${company.id} - billing_transactions table not yet implemented`);
+}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   Container,
   Typography,
@@ -82,27 +82,11 @@ export const ActivityLogsPage: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [total, setTotal] = useState(0);
 
-  useEffect(() => {
-    loadData();
-  }, [activityType, status, timeRange, page, rowsPerPage]);
+  // Prevent duplicate requests
+  const loadingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError('');
-
-      await Promise.all([
-        loadLogs(),
-        loadStats()
-      ]);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load activity logs');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     try {
       const params: any = {
         limit: rowsPerPage,
@@ -112,24 +96,74 @@ export const ActivityLogsPage: React.FC = () => {
       if (activityType) params.activityType = activityType;
       if (status) params.status = status;
 
-      const response = await api.get('/logs/activity', { params });
+      const response = await api.get('/logs/activity', {
+        params,
+        signal: abortControllerRef.current?.signal
+      });
       setLogs(response.data.data || []);
       setTotal(response.data.pagination?.total || 0);
-    } catch (error) {
-      console.error('Failed to load logs:', error);
+    } catch (error: any) {
+      if (error.name !== 'CanceledError') {
+        console.error('Failed to load logs:', error);
+      }
     }
-  };
+  }, [activityType, status, page, rowsPerPage]);
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
       const response = await api.get('/logs/activity/stats', {
-        params: { timeRange }
+        params: { timeRange },
+        signal: abortControllerRef.current?.signal
       });
       setStats(response.data.data);
-    } catch (error) {
-      console.error('Failed to load stats:', error);
+    } catch (error: any) {
+      if (error.name !== 'CanceledError') {
+        console.error('Failed to load stats:', error);
+      }
     }
-  };
+  }, [timeRange]);
+
+  const loadData = useCallback(async () => {
+    // Prevent duplicate requests
+    if (loadingRef.current) {
+      return;
+    }
+
+    // Cancel any pending requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    try {
+      loadingRef.current = true;
+      abortControllerRef.current = new AbortController();
+      setLoading(true);
+      setError('');
+
+      await Promise.all([
+        loadLogs(),
+        loadStats()
+      ]);
+    } catch (err: any) {
+      if (err.name !== 'CanceledError') {
+        setError(err.response?.data?.message || 'Failed to load activity logs');
+      }
+    } finally {
+      setLoading(false);
+      loadingRef.current = false;
+    }
+  }, [loadLogs, loadStats]);
+
+  useEffect(() => {
+    loadData();
+
+    // Cleanup: abort pending requests when component unmounts or dependencies change
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [loadData]);
 
   const handleActivityTypeChange = (event: SelectChangeEvent) => {
     setActivityType(event.target.value);

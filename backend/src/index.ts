@@ -67,6 +67,9 @@ import searchRoutes from './routes/searchRoutes';
 import webhookRoutes from './routes/webhookRoutes';
 import rateLimitRoutes from './routes/rateLimitRoutes';
 import notificationSettingsRoutes from './routes/notificationSettingsRoutes';
+import emailSettingsRoutes from './routes/emailSettingsRoutes';
+import paymentMethodsRoutes from './routes/paymentMethodsRoutes';
+import subscriptionRoutes from './routes/subscriptionRoutes';
 
 const app = express();
 
@@ -157,6 +160,10 @@ app.use('/api/rate-limits', rateLimitRoutes);
 app.use('/api/v1', publicApiRoutes);
 app.use('/api/public/onboarding', onboardingRoutes);
 app.use('/api/admin/onboarding', onboardingRoutes);
+app.use('/api/email', emailSettingsRoutes);
+app.use('/api/payment', paymentMethodsRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+
 
 // 404 handler
 app.use((_req, res) => {
@@ -166,7 +173,7 @@ app.use((_req, res) => {
 // Error handler
 app.use(errorHandler);
 
-// Start server - bind to 0.0.0.0 to accept external connections
+
 const PORT = config.PORT;
 const HOST = '0.0.0.0';
 

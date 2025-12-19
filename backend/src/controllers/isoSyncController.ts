@@ -44,7 +44,8 @@ const syncJobs: Map<string, ISOSyncJob> = new Map();
 /**
  * Get Proxmox ticket for authentication
  */
-async function getProxmoxTicket(cluster: ProxmoxCluster): Promise<string> {
+async function // @ts-ignore - unused
+  _getProxmoxTicket(cluster: ProxmoxCluster): Promise<string> {
   const password = decrypt(cluster.password_encrypted);
 
   const response = await axios.post(
@@ -87,7 +88,7 @@ async function downloadISO(
   const scpCommand = `sshpass -p '${password}' scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 22 "${cluster.username.replace('@pam', '')}@${cluster.host}:${remotePath}" "${tempFile}"`;
 
   return new Promise((resolve, reject) => {
-    child_process.exec(scpCommand, { maxBuffer: 1024 * 1024 * 1024 }, (error: any, stdout: any, stderr: any) => {
+    child_process.exec(scpCommand, { maxBuffer: 1024 * 1024 * 1024 }, (error: any, _stdout: any, stderr: any) => {
       if (error) {
         logger.error('SCP download error:', { error: error.message, stderr });
         try { fs.unlinkSync(tempFile); } catch(e) {}
@@ -130,7 +131,7 @@ async function uploadISO(
   const scpCommand = `sshpass -p '${password}' scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 22 "${tempFile}" "${cluster.username.replace('@pam', '')}@${cluster.host}:${remotePath}"`;
 
   return new Promise((resolve, reject) => {
-    child_process.exec(scpCommand, (error: any, stdout: any, stderr: any) => {
+    child_process.exec(scpCommand, (error: any, _stdout: any, stderr: any) => {
       fs.unlinkSync(tempFile);
       if (error) {
         logger.error('SCP upload error:', { error: error.message, stderr });
@@ -213,7 +214,7 @@ export const startISOSync = async (req: AuthRequest, res: Response): Promise<voi
 
     syncJobs.set(jobId, syncJob);
     // Persist to database
-    database.iso_sync_jobs.create({
+    prisma.iso_sync_jobs.create({
       data: {
         id: jobId,
         iso_id: iso.id,
@@ -223,7 +224,7 @@ export const startISOSync = async (req: AuthRequest, res: Response): Promise<voi
         progress: 0,
         results: JSON.stringify(syncJob.results)
       }
-    }).catch(err => logger.error('Failed to persist sync job:', err));
+    }).catch((err: any) => logger.error('Failed to persist sync job:', err));
 
     // Start async sync process
     processISOSync(jobId, iso, sourceCluster, targetClusters, targetStorage, targetNode, req.user!.id).catch(error => {
@@ -332,13 +333,13 @@ async function processISOSync(
       }
 
       job.progress = 10 + (i + 1) * progressIncrement;
-        await database.iso_sync_jobs.update({
+        await prisma.iso_sync_jobs.update({
           where: { id: jobId },
           data: {
             progress: Math.floor(job.progress),
             results: JSON.stringify(job.results)
           }
-        }).catch(err => logger.error('Failed to update progress:', err));
+        }).catch((err: any) => logger.error('Failed to update progress:', err));
     }
 
     // Check if all succeeded
@@ -346,7 +347,7 @@ async function processISOSync(
     job.status = allSucceeded ? 'completed' : 'failed';
     job.progress = 100;
     job.completedAt = new Date();
-    await database.iso_sync_jobs.update({
+    await prisma.iso_sync_jobs.update({
       where: { id: jobId },
       data: {
         status: job.status,
@@ -354,7 +355,7 @@ async function processISOSync(
         results: JSON.stringify(job.results),
         completed_at: job.completedAt
       }
-    }).catch(err => logger.error('Failed to update completion:', err));
+    }).catch((err: any) => logger.error('Failed to update completion:', err));
 
     logger.info(`ISO sync job ${jobId} completed with status: ${job.status}`);
   } catch (error: any) {
@@ -375,7 +376,7 @@ export const getISOSyncStatus = async (req: AuthRequest, res: Response): Promise
     let job = syncJobs.get(jobId);
     if (!job) {
       // Check database for completed jobs
-      const dbJob = await database.iso_sync_jobs.findUnique({
+      const dbJob = await prisma.iso_sync_jobs.findUnique({
         where: { id: jobId }
       });
       if (dbJob) {
@@ -383,12 +384,12 @@ export const getISOSyncStatus = async (req: AuthRequest, res: Response): Promise
           id: dbJob.id,
           sourceIsoId: dbJob.iso_id,
           sourceClusterId: dbJob.source_cluster_id,
-          targetClusterIds: JSON.parse(dbJob.target_cluster_ids),
-          status: dbJob.status,
-          progress: dbJob.progress,
-          results: JSON.parse(dbJob.results || '[]'),
-          completedAt: dbJob.completed_at,
-          error: dbJob.error
+          targetClusterIds: JSON.parse(dbJob.target_cluster_ids as string),
+          status: (dbJob.status || "pending") as "pending" | "in_progress" | "completed" | "failed",
+          progress: dbJob.progress || 0,
+          results: JSON.parse(String(dbJob.results) || '[]'),
+          completedAt: dbJob.completed_at || undefined,
+          error: dbJob.error || undefined
         };
       } else {
         res.status(404).json({ success: false, message: 'Sync job not found' });
@@ -429,7 +430,7 @@ export const cancelISOSync = async (req: AuthRequest, res: Response): Promise<vo
     let job = syncJobs.get(jobId);
     if (!job) {
       // Check database for completed jobs
-      const dbJob = await database.iso_sync_jobs.findUnique({
+      const dbJob = await prisma.iso_sync_jobs.findUnique({
         where: { id: jobId }
       });
       if (dbJob) {
@@ -437,12 +438,12 @@ export const cancelISOSync = async (req: AuthRequest, res: Response): Promise<vo
           id: dbJob.id,
           sourceIsoId: dbJob.iso_id,
           sourceClusterId: dbJob.source_cluster_id,
-          targetClusterIds: JSON.parse(dbJob.target_cluster_ids),
-          status: dbJob.status,
-          progress: dbJob.progress,
-          results: JSON.parse(dbJob.results || '[]'),
-          completedAt: dbJob.completed_at,
-          error: dbJob.error
+          targetClusterIds: JSON.parse(dbJob.target_cluster_ids as string),
+          status: (dbJob.status || "pending") as "pending" | "in_progress" | "completed" | "failed",
+          progress: dbJob.progress || 0,
+          results: JSON.parse(String(dbJob.results) || '[]'),
+          completedAt: dbJob.completed_at || undefined,
+          error: dbJob.error || undefined
         };
       } else {
         res.status(404).json({ success: false, message: 'Sync job not found' });
@@ -450,15 +451,15 @@ export const cancelISOSync = async (req: AuthRequest, res: Response): Promise<vo
       }
     }
 
-    if (job.status === 'completed' || job.status === 'failed') {
+    if (job && (job.status === 'completed' || job.status === 'failed')) {
       res.status(400).json({ success: false, message: 'Cannot cancel completed or failed job' });
       return;
     }
 
     // Mark as failed (actual cancellation would require more complex state management)
-    job.status = 'failed';
-    job.error = 'Cancelled by user';
-    job.completedAt = new Date();
+    job!.status = 'failed';
+    job!.error = 'Cancelled by user';
+    job!.completedAt = new Date();
 
     logger.info(`ISO sync job ${jobId} cancelled`);
     res.json({ success: true, message: 'Sync job cancelled' });

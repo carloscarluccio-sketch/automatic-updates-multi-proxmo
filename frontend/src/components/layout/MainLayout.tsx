@@ -15,6 +15,7 @@ import {
   Collapse,
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import CategoryIcon from '@mui/icons-material/Category';
 import ComputerIcon from '@mui/icons-material/Computer';
 import BusinessIcon from '@mui/icons-material/Business';
 import GroupIcon from '@mui/icons-material/Group';
@@ -53,7 +54,6 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import SpeedIcon from '@mui/icons-material/Speed';
-import CloudSyncIcon from '@mui/icons-material/CloudSync';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import MonitorIcon from '@mui/icons-material/Monitor';
 import AlarmIcon from '@mui/icons-material/Alarm';
@@ -123,7 +123,6 @@ export const MainLayout: React.FC = () => {
         { label: 'Templates', path: '/templates', icon: <AssessmentIcon /> },
         { label: 'ISOs', path: '/isos', icon: <AssessmentIcon /> },
         { label: 'VM Import & Discovery', path: '/vm-import', icon: <CloudDownloadIcon /> },
-        { label: 'ESXi Import', path: '/esxi-import', icon: <CloudSyncIcon /> },
         { label: 'VM Templates', path: '/vm-templates', icon: <DescriptionIcon /> },
         { label: 'Backup Policies', path: '/backup-policies', icon: <BackupIcon /> },
         { label: 'Backup Schedules', path: '/backup-schedules', icon: <ScheduleIcon /> },
@@ -186,6 +185,9 @@ export const MainLayout: React.FC = () => {
         { label: 'Support Tickets', path: '/support-tickets', icon: <SupportAgentIcon /> },
         { label: 'Help Center', path: '/help', icon: <HelpOutlineIcon /> },
         { label: 'Knowledge Base Admin', path: '/help-admin/articles', icon: <ArticleIcon />, roles: ['super_admin', 'company_admin'] },
+        { label: 'FAQ Management', path: '/help-admin/faqs', icon: <HelpOutlineIcon />, roles: ['super_admin', 'company_admin'] },
+        { label: 'Help Analytics', path: '/help-admin/analytics', icon: <AssessmentIcon />, roles: ['super_admin', 'company_admin'] },
+        { label: 'Category Management', path: '/help-admin/categories', icon: <CategoryIcon />, roles: ['super_admin', 'company_admin'] },
         { label: 'Feedback', path: '/feedback', icon: <FeedbackIcon /> },
       ],
     },

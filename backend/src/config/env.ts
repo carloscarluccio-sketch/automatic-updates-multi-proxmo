@@ -49,7 +49,7 @@ const config: EnvConfig = {
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
   CORS_ORIGINS: (process.env.CORS_ORIGINS || 'http://localhost:5173').split(','),
   RATE_LIMIT_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
-  RATE_LIMIT_MAX_REQUESTS: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
+  RATE_LIMIT_MAX_REQUESTS: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '500', 10),
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
 };
 

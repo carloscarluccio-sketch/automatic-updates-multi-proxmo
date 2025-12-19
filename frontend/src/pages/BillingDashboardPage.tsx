@@ -142,9 +142,44 @@ const BillingDashboardPage: React.FC = () => {
     }
   };
 
-  const handleDownloadInvoice = (invoiceId: number) => {
-    // TODO: Implement invoice PDF download
-    console.log('Download invoice:', invoiceId);
+    const handleDownloadInvoice = async (invoiceId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/invoices/${invoiceId}/download-pdf`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download invoice PDF');
+      }
+
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = 'invoice.pdf';
+      if (contentDisposition) {
+        const matches = /filename="([^"]+)"/.exec(contentDisposition);
+        if (matches && matches[1]) {
+          filename = matches[1];
+        }
+      }
+
+      // Convert response to blob and trigger download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      alert('Failed to download invoice PDF');
+    }
   };
 
   if (loading && !estimate) {

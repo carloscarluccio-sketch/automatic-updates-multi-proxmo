@@ -580,6 +580,13 @@ model companies {
   billing_day_of_month       Int?                         @default(1)
   billing_active             Boolean?                     @default(true)
   next_billing_date          DateTime?                    @db.Date
+  tax_rate                   Decimal?                     @default(0.0000) @db.Decimal(5, 4)
+  tax_id                     String?                      @db.VarChar(100)
+  company_address            String?                      @db.Text
+  budget_threshold           Decimal?                     @default(1000.00) @db.Decimal(10, 2)
+  last_budget_alert_sent     DateTime?                    @db.DateTime(0)
+  support_email              String?                      @db.VarChar(255)
+  alert_webhook_url          String?                      @db.VarChar(500)
   activity_logs              activity_logs[]
   alert_history              alert_history[]
   alert_rules                alert_rules[]
@@ -593,6 +600,7 @@ model companies {
   backup_schedules           backup_schedules[]
   billing_audit_log          billing_audit_log[]
   billing_records            billing_records[]
+  billing_transactions       billing_transactions[]
   bulk_operations_log        bulk_operations_log[]
   company_backup_assignments company_backup_assignments[]
   company_billing            company_billing?
@@ -4198,6 +4206,31 @@ model iso_sync_jobs {
   @@index([source_cluster_id], map: "source_cluster_id")
 }
 
+model billing_transactions {
+  id                       Int                                   @id @default(autoincrement())
+  company_id               Int
+  amount                   Decimal                               @db.Decimal(10, 2)
+  currency                 String?                               @default("USD") @db.VarChar(3)
+  payment_method           String                                @db.VarChar(50)
+  status                   billing_transactions_status
+  transaction_type         billing_transactions_transaction_type
+  description              String?                               @db.Text
+  stripe_payment_intent_id String?                               @db.VarChar(255)
+  stripe_invoice_id        String?                               @db.VarChar(255)
+  stripe_charge_id         String?                               @db.VarChar(255)
+  metadata                 Json?
+  created_at               DateTime?                             @default(now()) @db.Timestamp(0)
+  updated_at               DateTime?                             @default(now()) @db.Timestamp(0)
+  companies                companies                             @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "billing_transactions_ibfk_1")
+
+  @@index([company_id], map: "idx_company_id")
+  @@index([created_at], map: "idx_created_at")
+  @@index([status], map: "idx_status")
+  @@index([stripe_invoice_id], map: "idx_stripe_invoice")
+  @@index([stripe_payment_intent_id], map: "idx_stripe_payment_intent")
+  @@index([transaction_type], map: "idx_transaction_type")
+}
+
 enum bulk_cluster_operations_operation_type {
   test_connection
   restart_service
@@ -5473,4 +5506,18 @@ enum iso_sync_jobs_status {
   in_progress
   completed
   failed
+}
+
+enum billing_transactions_status {
+  pending
+  completed
+  failed
+  refunded
+}
+
+enum billing_transactions_transaction_type {
+  payment
+  subscription_payment
+  refund
+  adjustment
 }

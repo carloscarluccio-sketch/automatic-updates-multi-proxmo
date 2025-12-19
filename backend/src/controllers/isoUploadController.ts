@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { AuthRequest } from '../types/express';
+import { AuthRequest } from '../middlewares/auth';
 import prisma from '../config/database';
 import logger from '../utils/logger';
 import { exec } from 'child_process';

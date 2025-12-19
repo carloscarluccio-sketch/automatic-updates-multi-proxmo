@@ -118,7 +118,7 @@ export const processQueue = async (req: AuthRequest, res: Response): Promise<voi
     }
 
     // Process queue in background
-    emailService.processQueue(100)
+    emailService.processQueue()
       .catch((error) => logger.error('Background queue processing error:', error));
 
     res.json({
