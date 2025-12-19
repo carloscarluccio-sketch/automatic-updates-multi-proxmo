@@ -4,6 +4,9 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+// @ts-ignore - CSRF protection available but optional for JWT-based API
+import { getCsrfToken } from './middlewares/csrf';
+import { requestIdMiddleware, httpRequestLogger, errorLogger } from './middlewares/requestLogger';
 import { createServer } from 'http';
 import config from './config/env';
 import logger from './utils/logger';
@@ -70,6 +73,7 @@ import supportTicketRoutes from './routes/supportTicketRoutes';
 import searchRoutes from './routes/searchRoutes';
 import webhookRoutes from './routes/webhookRoutes';
 import rateLimitRoutes from './routes/rateLimitRoutes';
+import databaseBackupRoutes from './routes/databaseBackupRoutes';
 import notificationSettingsRoutes from './routes/notificationSettingsRoutes';
 import emailSettingsRoutes from './routes/emailSettingsRoutes';
 import paymentMethodsRoutes from './routes/paymentMethodsRoutes';
@@ -97,6 +101,16 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+// Request ID tracking
+app.use(requestIdMiddleware);
+
+// HTTP request logging
+app.use(httpRequestLogger);
+// CSRF Protection (optional - only for form-based auth)
+// app.use(csrfProtection);
+
+// CSRF token endpoint
+app.get('/api/csrf-token', getCsrfToken);
 
 
 // Serve uploaded files
@@ -167,6 +181,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/notification-settings', notificationSettingsRoutes);
 app.use('/api/rate-limits', rateLimitRoutes);
+app.use('/api/database-backups', databaseBackupRoutes);
 app.use('/api/v1', publicApiRoutes);
 app.use('/api/public/onboarding', onboardingRoutes);
 app.use('/api/admin/onboarding', onboardingRoutes);
@@ -179,6 +194,9 @@ app.use('/api/subscriptions', subscriptionRoutes);
 app.use((_req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });
 });
+
+// Error logging
+app.use(errorLogger);
 
 // Error handler
 app.use(errorHandler);
