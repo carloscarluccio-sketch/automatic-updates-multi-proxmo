@@ -1,7 +1,4 @@
 import { Request, Response } from 'express';
-// import { ESXiConnection, ESXiCredentials, ConnectionTestResult } from "../services/esxi/ESXiConnection";
-// import { ESXiDiscoveryService } from "../services/esxi/ESXiDiscoveryService";
-// import { ESXiImportOrchestrator } from "../services/esxi/ESXiImportOrchestrator";
 import { PrismaClient } from '@prisma/client';
 import { encrypt, decrypt } from '../utils/encryption';
 
