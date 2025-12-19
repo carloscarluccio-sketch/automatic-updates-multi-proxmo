@@ -23,6 +23,8 @@ describe('VMs Controller', () => {
     testCompany = await prisma.companies.create({
       data: {
         name: 'Test Company VMs',
+        owner_name: 'Test Owner',
+        primary_email: 'owner@testcompany.com',
         status: 'active',
       },
     });
@@ -86,8 +88,8 @@ describe('VMs Controller', () => {
           cluster_id: testCluster.id,
           node: 'pve1',
           cpu_cores: 2,
-          memory: 2048,
-          disk: 20,
+          memory_mb: 2048,
+          storage_gb: 20,
           status: 'running',
         },
       });
@@ -133,8 +135,8 @@ describe('VMs Controller', () => {
           cluster_id: testCluster.id,
           node: 'pve1',
           cpu_cores: 1,
-          memory: 1024,
-          disk: 10,
+          memory_mb: 1024,
+          storage_gb: 10,
         },
       });
 
@@ -180,8 +182,8 @@ describe('VMs Controller', () => {
           cluster_id: testCluster.id,
           node: 'pve1',
           cpu_cores: 4,
-          memory: 4096,
-          disk: 50,
+          memory_mb: 4096,
+          storage_gb: 50,
           network: {
             ip: '192.168.1.200',
             gateway: '192.168.1.1',
@@ -195,7 +197,7 @@ describe('VMs Controller', () => {
         vmid: 200,
         name: 'new-test-vm',
         cpu_cores: 4,
-        memory: 4096,
+        memory_mb: 4096,
       });
 
       // Cleanup
@@ -211,8 +213,8 @@ describe('VMs Controller', () => {
           cluster_id: testCluster.id,
           node: 'pve1',
           cpu_cores: 2,
-          memory: 2048,
-          disk: 20,
+          memory_mb: 2048,
+          storage_gb: 20,
         },
       });
 
@@ -225,8 +227,8 @@ describe('VMs Controller', () => {
           cluster_id: testCluster.id,
           node: 'pve1',
           cpu_cores: 2,
-          memory: 2048,
-          disk: 20,
+          memory_mb: 2048,
+          storage_gb: 20,
         });
 
       expect(response.status).toBe(409);
@@ -258,8 +260,8 @@ describe('VMs Controller', () => {
           cluster_id: testCluster.id,
           node: 'pve1',
           cpu_cores: 0,
-          memory: 128,
-          disk: 5,
+          memory_mb: 128,
+          storage_gb: 5,
         });
 
       expect(response.status).toBe(400);
@@ -279,8 +281,8 @@ describe('VMs Controller', () => {
           cluster_id: testCluster.id,
           node: 'pve1',
           cpu_cores: 2,
-          memory: 2048,
-          disk: 20,
+          memory_mb: 2048,
+          storage_gb: 20,
         },
       });
     });
@@ -295,7 +297,7 @@ describe('VMs Controller', () => {
         .set('Authorization', `Bearer ${userToken}`)
         .send({
           cpu_cores: 4,
-          memory: 8192,
+          memory_mb: 8192,
         });
 
       expect(response.status).toBe(200);
@@ -303,7 +305,7 @@ describe('VMs Controller', () => {
       expect(response.body.data).toMatchObject({
         id: vmToUpdate.id,
         cpu_cores: 4,
-        memory: 8192,
+        memory_mb: 8192,
       });
     });
 
@@ -325,8 +327,8 @@ describe('VMs Controller', () => {
           cluster_id: testCluster.id,
           node: 'pve1',
           cpu_cores: 2,
-          memory: 2048,
-          disk: 20,
+          memory_mb: 2048,
+          storage_gb: 20,
         },
       });
 
@@ -365,8 +367,8 @@ describe('VMs Controller', () => {
           cluster_id: testCluster.id,
           node: 'pve1',
           cpu_cores: 2,
-          memory: 2048,
-          disk: 20,
+          memory_mb: 2048,
+          storage_gb: 20,
           status: 'stopped',
         },
       });
@@ -423,8 +425,8 @@ describe('VMs Controller', () => {
           cluster_id: testCluster.id,
           node: 'pve1',
           cpu_cores: 2,
-          memory: 2048,
-          disk: 20,
+          memory_mb: 2048,
+          storage_gb: 20,
         },
       });
 
@@ -451,8 +453,8 @@ describe('VMs Controller', () => {
           cluster_id: testCluster.id,
           node: 'pve1',
           cpu_cores: 2,
-          memory: 2048,
-          disk: 20,
+          memory_mb: 2048,
+          storage_gb: 20,
           status: 'running',
         },
       });

@@ -20,6 +20,8 @@ describe('Authentication Controller', () => {
     testCompany = await prisma.companies.create({
       data: {
         name: 'Test Company',
+        owner_name: 'Test Owner',
+        primary_email: 'owner@testcompany.com',
         status: 'active',
       },
     });
@@ -50,8 +52,8 @@ describe('Authentication Controller', () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          username: 'testuser',
-          password_hash: 'Test123!',
+          email: 'test@example.com',
+          password: 'Test123!',
         });
 
       expect(response.status).toBe(200);
@@ -59,7 +61,6 @@ describe('Authentication Controller', () => {
       expect(response.body.token).toBeDefined();
       expect(response.body.user).toMatchObject({
         id: testUser.id,
-        username: 'testuser',
         email: 'test@example.com',
         role: 'user',
       });
@@ -69,8 +70,8 @@ describe('Authentication Controller', () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          username: 'testuser',
-          password_hash: 'WrongPassword',
+          email: 'test@example.com',
+          password: 'WrongPassword',
         });
 
       expect(response.status).toBe(401);
@@ -83,7 +84,7 @@ describe('Authentication Controller', () => {
         .post('/api/auth/login')
         .send({
           username: 'nonexistent',
-          password_hash: 'Test123!',
+          password: 'Test123!',
         });
 
       expect(response.status).toBe(401);
@@ -108,7 +109,7 @@ describe('Authentication Controller', () => {
         .post('/api/auth/login')
         .send({
           username: 'inactive',
-          password_hash: 'Test123!',
+          password: 'Test123!',
         });
 
       expect(response.status).toBe(401);
@@ -124,8 +125,8 @@ describe('Authentication Controller', () => {
           request(app)
             .post('/api/auth/login')
             .send({
-              username: 'testuser',
-              password_hash: 'WrongPassword',
+              email: 'test@example.com',
+              password: 'WrongPassword',
             })
         );
       }
@@ -250,7 +251,7 @@ describe('Authentication Controller', () => {
       const loginResponse = await request(app)
         .post('/api/auth/login')
         .send({
-          username: 'testuser',
+          email: 'test@example.com',
           password_hash: 'NewTest456!',
         });
 

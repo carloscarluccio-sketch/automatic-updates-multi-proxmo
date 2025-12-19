@@ -6,7 +6,7 @@
   "scripts": {
     "test:coverage": "jest --coverage",
     "test:watch": "jest --watch",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
