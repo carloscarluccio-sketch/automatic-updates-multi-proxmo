@@ -56,3 +56,11 @@ coverage/
 tmp/
 temp/
 *.tmp
+
+# Prevent accidental large files
+backend/-
+frontend/-
+-
+*.log.*
+*.dump
+*.sql.gz
