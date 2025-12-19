@@ -77,21 +77,12 @@ export const getHelpCategories = async (_req: Request, res: Response): Promise<v
  */
 export const getHelpArticles = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { category_id, category, page_context, feature_tag, is_featured, search } = req.query;
+    const { category_id, page_context, feature_tag, is_featured, search } = req.query;
 
     // Get user context for visibility filtering
     const userCompanyId = (req as any).user?.company_id;
     const userRole = (req as any).user?.role;
     
-    // Build visibility condition based on user context
-    let visibilityCondition = `a.visibility = 'global'`;
-    if (userCompanyId) {
-      visibilityCondition += ` OR (a.visibility = 'company_specific' AND JSON_CONTAINS(a.target_company_ids, '${userCompanyId}'))`;
-    }
-    if (userRole) {
-      visibilityCondition += ` OR (a.visibility = 'role_specific' AND JSON_CONTAINS(a.target_roles, '"${userRole}"'))`;
-    }
-
     let query = `
       SELECT
         a.id,
@@ -110,7 +101,11 @@ export const getHelpArticles = async (req: Request, res: Response): Promise<void
       FROM help_articles a
       JOIN help_categories c ON a.category_id = c.id
       WHERE a.is_published = TRUE
-        AND (${visibilityCondition})
+        AND (
+          a.visibility = 'global'
+          OR (a.visibility = 'company_specific' AND JSON_CONTAINS(a.target_company_ids, '[${userCompanyId}]', '$'))
+          OR (a.visibility = 'role_specific' AND JSON_CONTAINS(a.target_roles, '"${userRole}"', '$'))
+        )
     `;
 
     const params: any[] = [];
@@ -118,9 +113,6 @@ export const getHelpArticles = async (req: Request, res: Response): Promise<void
     if (category_id) {
       query += ` AND a.category_id = ?`;
       params.push(Number(category_id));
-    } else if (category) {
-      query += ` AND c.slug = ?`;
-      params.push(category);
     }
 
     if (page_context) {
@@ -234,7 +226,7 @@ export const getArticleBySlug = async (req: Request, res: Response): Promise<voi
  */
 export const getHelpFAQs = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { category_id, category, page_context, feature_tag, search } = req.query;
+    const { category_id, page_context, feature_tag, search } = req.query;
 
     let query = `
       SELECT
@@ -257,9 +249,6 @@ export const getHelpFAQs = async (req: Request, res: Response): Promise<void> =>
     if (category_id) {
       query += ` AND f.category_id = ?`;
       params.push(Number(category_id));
-    } else if (category) {
-      query += ` AND c.slug = ?`;
-      params.push(category);
     }
 
     if (page_context) {

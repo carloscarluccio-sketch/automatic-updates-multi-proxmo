@@ -23,6 +23,7 @@ import {
   getSSHKeyClusterDetails,
 } from '../controllers/sshKeyHealthController';
 import { authenticate } from '../middlewares/auth';
+import { strictIPWhitelistMiddleware } from '../middlewares/ipWhitelist';
 
 const router = express.Router();
 router.use(authenticate);
@@ -30,7 +31,7 @@ router.get('/', getClusters);
 router.get('/:id', getCluster);
 router.post('/', createCluster);
 router.put('/:id', updateCluster);
-router.delete('/:id', deleteCluster);
+router.delete('/:id', strictIPWhitelistMiddleware, deleteCluster);
 router.post('/:id/test-connection', testConnection);
 router.get('/:id/nodes', getClusterNodes);
 router.get('/:id/nodes/:node/storages', getClusterStorages);

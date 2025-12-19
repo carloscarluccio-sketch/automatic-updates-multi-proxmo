@@ -9,8 +9,9 @@ router.use(authenticate);
 router.get('/', getUsers);
 router.get('/:id', getUser);
 import { validateRequiredFields, validateEmailMiddleware } from '../middlewares/inputValidation';
+import { strictIPWhitelistMiddleware } from '../middlewares/ipWhitelist';
 router.post('/', userManagementLimiter, validateRequiredFields(['username', 'email', 'password', 'role']), validateEmailMiddleware('email'), createUser);
 router.put('/:id', updateUser);
-router.delete('/:id', userManagementLimiter, deleteUser);
+router.delete('/:id', userManagementLimiter,strictIPWhitelistMiddleware, deleteUser);
 
 export default router;
