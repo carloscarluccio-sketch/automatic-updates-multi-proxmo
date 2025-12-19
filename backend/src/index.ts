@@ -9,6 +9,10 @@ import config from './config/env';
 import logger from './utils/logger';
 import { errorHandler } from './middlewares/errorHandler';
 import { apiLimiter } from './middlewares/rateLimiter';
+import { securityHeadersMiddleware, httpsRedirectMiddleware } from './middlewares/securityHeaders';
+// TODO: Apply to specific admin routes later
+// @ts-ignore - Will be used for specific admin routes
+import ipWhitelistMiddleware from './middlewares/ipWhitelist';
 import { initializeConsoleProxy } from './utils/proxmoxConsoleProxy';
 
 // Routes
@@ -78,6 +82,12 @@ app.set('trust proxy', 1);
 
 // Security middleware
 app.use(helmet());
+
+// HTTPS redirect (forces all HTTP traffic to HTTPS in production)
+app.use(httpsRedirectMiddleware);
+
+// Security headers (adds comprehensive security headers to all responses)
+app.use(securityHeadersMiddleware);
 app.use(cors({
   origin: config.CORS_ORIGINS,
   credentials: true,
