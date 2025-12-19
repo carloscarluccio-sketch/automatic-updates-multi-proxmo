@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { apiRequest } from '../utils/api';
+import api from '../services/api';
 
 interface IPConflictResult {
   conflict: boolean;
@@ -13,13 +13,12 @@ interface IPConflictResult {
   conflictingVM?: {
     id: number;
     name: string;
-    vmid: number;
-    companyName: string;
+    ip_address: string;
   };
 }
 
-export function useIPConflictCheck() {
-  const [checking, setChecking] = useState(false);
+export const useIPConflictCheck = () => {
+  const [isChecking, setIsChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const checkIPConflict = useCallback(
@@ -28,130 +27,140 @@ export function useIPConflictCheck() {
       clusterId: number,
       rangeId?: number,
       vmId?: number
-    ): Promise<IPConflictResult | null> => {
-      if (!ipAddress || !clusterId) {
-        return null;
-      }
-
-      setChecking(true);
+    ): Promise<IPConflictResult> => {
+      setIsChecking(true);
       setError(null);
 
       try {
-        const response = await apiRequest('/network/check-ip-conflict', {
-          method: 'POST',
-          body: JSON.stringify({
-            ipAddress,
-            clusterId,
-            rangeId,
-            vmId,
-          }),
+        const response = await api.post('/network/check-ip-conflict', {
+          ipAddress,
+          clusterId,
+          rangeId,
+          vmId,
         });
 
-        if (response.conflict) {
+        const data = response.data;
+
+        if (data.conflict) {
           return {
             conflict: true,
-            message: response.message,
-            conflictingVM: response.conflictingVM,
+            message: data.message,
+            conflictingVM: data.conflictingVM,
           };
         }
 
         return {
           conflict: false,
-          message: response.message,
-          warnings: response.warnings,
+          message: data.message,
+          warnings: data.warnings,
         };
       } catch (err: any) {
         setError(err.message || 'Failed to check IP conflict');
         return {
-          conflict: true,
+          conflict: false,
           message: err.message || 'Failed to check IP conflict',
         };
       } finally {
-        setChecking(false);
+        setIsChecking(false);
       }
     },
     []
   );
 
-  const getAvailableIPs = useCallback(
-    async (rangeId: number, limit: number = 50): Promise<string[]> => {
-      setChecking(true);
+  const checkSubnetConflict = useCallback(
+    async (
+      subnet: string,
+      clusterId: number,
+      rangeId?: number
+    ): Promise<IPConflictResult> => {
+      setIsChecking(true);
       setError(null);
 
       try {
-        const response = await apiRequest(
-          `/network/ip-ranges/${rangeId}/available?limit=${limit}`
-        );
-        return response.data || [];
+        const response = await api.post('/network/check-subnet-conflict', {
+          subnet,
+          clusterId,
+          rangeId,
+        });
+
+        const data = response.data;
+
+        if (data.conflict) {
+          return {
+            conflict: true,
+            message: data.message,
+          };
+        }
+
+        return {
+          conflict: false,
+          message: data.message,
+          warnings: data.warnings,
+        };
       } catch (err: any) {
-        setError(err.message || 'Failed to get available IPs');
-        return [];
+        setError(err.message || 'Failed to check subnet conflict');
+        return {
+          conflict: false,
+          message: err.message || 'Failed to check subnet conflict',
+        };
       } finally {
-        setChecking(false);
+        setIsChecking(false);
       }
     },
     []
   );
 
+  const validateIPFormat = useCallback((ip: string): boolean => {
+    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipRegex.test(ip)) return false;
+
+    const parts = ip.split('.');
+    return parts.every((part) => {
+      const num = parseInt(part, 10);
+      return num >= 0 && num <= 255;
+    });
+  }, []);
+
+  const validateSubnetFormat = useCallback((subnet: string): boolean => {
+    const subnetRegex = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/;
+    if (!subnetRegex.test(subnet)) return false;
+
+    const [ip, cidr] = subnet.split('/');
+    const cidrNum = parseInt(cidr, 10);
+
+    if (cidrNum < 0 || cidrNum > 32) return false;
+
+    const parts = ip.split('.');
+    return parts.every((part) => {
+      const num = parseInt(part, 10);
+      return num >= 0 && num <= 255;
+    });
+  }, []);
+
+  const isIPInSubnet = useCallback((ip: string, subnet: string): boolean => {
+    if (!validateIPFormat(ip) || !validateSubnetFormat(subnet)) return false;
+
+    const [subnetIP, cidr] = subnet.split('/');
+    const cidrNum = parseInt(cidr, 10);
+
+    const ipToNumber = (ipStr: string): number => {
+      return ipStr.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0);
+    };
+
+    const ipNum = ipToNumber(ip);
+    const subnetNum = ipToNumber(subnetIP);
+    const mask = -1 << (32 - cidrNum);
+
+    return (ipNum & mask) === (subnetNum & mask);
+  }, [validateIPFormat, validateSubnetFormat]);
+
   return {
     checkIPConflict,
-    getAvailableIPs,
-    checking,
+    checkSubnetConflict,
+    validateIPFormat,
+    validateSubnetFormat,
+    isIPInSubnet,
+    isChecking,
     error,
   };
-}
-
-/**
- * Usage Example in VM Creation Form:
- */
-/*
-import { useIPConflictCheck } from '../hooks/useIPConflictCheck';
-
-export function VMCreateForm() {
-  const [ipAddress, setIPAddress] = useState('');
-  const [ipError, setIPError] = useState('');
-  const [ipWarnings, setIPWarnings] = useState<string[]>([]);
-
-  const { checkIPConflict, checking } = useIPConflictCheck();
-
-  const handleIPBlur = async () => {
-    if (!ipAddress) return;
-
-    const result = await checkIPConflict(
-      ipAddress,
-      selectedClusterId,
-      selectedRangeId
-    );
-
-    if (result?.conflict) {
-      setIPError(result.message);
-      return;
-    }
-
-    if (result?.warnings && result.warnings.length > 0) {
-      setIPWarnings(result.warnings);
-    }
-
-    setIPError('');
-  };
-
-  return (
-    <div>
-      <TextField
-        label="IP Address"
-        value={ipAddress}
-        onChange={(e) => setIPAddress(e.target.value)}
-        onBlur={handleIPBlur}
-        error={!!ipError}
-        helperText={ipError}
-      />
-      {checking && <CircularProgress size={20} />}
-      {ipWarnings.length > 0 && (
-        <Alert severity="warning">
-          {ipWarnings.join(', ')}
-        </Alert>
-      )}
-    </div>
-  );
-}
-*/
+};

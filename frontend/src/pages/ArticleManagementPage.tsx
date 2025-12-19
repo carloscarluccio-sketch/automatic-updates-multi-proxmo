@@ -81,6 +81,11 @@ interface Article {
   updated_at: string;
   created_by: number;
   updated_by: number | null;
+  help_categories?: {
+    id: number;
+    name: string;
+    icon: string | null;
+  };
   companies?: {
     id: number;
     name: string;
@@ -276,7 +281,7 @@ export const ArticleManagementPage: React.FC = () => {
     setFormData({
       title: article.title,
       slug: article.slug,
-      category: article.category,
+      category: article.help_categories?.name || '',
       summary: article.summary || '',
       content: article.content,
       visibility: article.visibility,
@@ -608,7 +613,7 @@ export const ArticleManagementPage: React.FC = () => {
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Chip label={article.category.replace('_', ' ')} size="small" variant="outlined" />
+                    <Chip label={article.help_categories?.name || 'Uncategorized'} size="small" variant="outlined" />
                   </TableCell>
                   <TableCell>
                     <Chip
