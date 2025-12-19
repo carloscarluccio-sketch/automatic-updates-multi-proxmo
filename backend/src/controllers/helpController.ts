@@ -103,12 +103,15 @@ export const getHelpArticles = async (req: Request, res: Response): Promise<void
       WHERE a.is_published = TRUE
         AND (
           a.visibility = 'global'
-          OR (a.visibility = 'company_specific' AND JSON_CONTAINS(a.target_company_ids, '[${userCompanyId}]', '$'))
-          OR (a.visibility = 'role_specific' AND JSON_CONTAINS(a.target_roles, '"${userRole}"', '$'))
+          OR (a.visibility = 'company_specific' AND JSON_CONTAINS(a.target_company_ids, CAST(? AS JSON), '$'))
+          OR (a.visibility = 'role_specific' AND JSON_CONTAINS(a.target_roles, CAST(? AS JSON), '$'))
         )
     `;
 
-    const params: any[] = [];
+    const params: any[] = [
+      JSON.stringify([userCompanyId]),  // For target_company_ids
+      JSON.stringify(userRole)           // For target_roles
+    ];
 
     if (category_id) {
       query += ` AND a.category_id = ?`;
