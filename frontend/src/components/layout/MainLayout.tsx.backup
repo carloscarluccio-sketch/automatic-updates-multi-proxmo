@@ -123,7 +123,6 @@ export const MainLayout: React.FC = () => {
         { label: 'Templates', path: '/templates', icon: <AssessmentIcon /> },
         { label: 'ISOs', path: '/isos', icon: <AssessmentIcon /> },
         { label: 'VM Import & Discovery', path: '/vm-import', icon: <CloudDownloadIcon /> },
-        { label: 'ESXi Import', path: '/esxi-import', icon: <CloudDownloadIcon /> },
         { label: 'VM Templates', path: '/vm-templates', icon: <DescriptionIcon /> },
         { label: 'Backup Policies', path: '/backup-policies', icon: <BackupIcon /> },
         { label: 'Backup Schedules', path: '/backup-schedules', icon: <ScheduleIcon /> },
