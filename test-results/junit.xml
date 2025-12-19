@@ -1,0 +1,622 @@
+<testsuites id="" name="" tests="150" failures="0" skipped="150" errors="0" time="0.19973199999999997">
+<testsuite name="auth.spec.ts" timestamp="2025-12-19T13:45:00.340Z" hostname="chromium" tests="14" failures="0" skipped="14" time="0" errors="0">
+<testcase name="Authentication › should display login page" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should login with valid credentials" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should show error with invalid credentials" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should show error with empty fields" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should navigate to forgot password" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should logout successfully" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should persist session after page reload" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should redirect to login when accessing protected route without auth" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should handle password reset flow" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should enforce password requirements" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should redirect to 2FA setup after first login" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should setup 2FA with QR code" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should prompt for 2FA code on login" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should reject invalid 2FA codes" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="vms.spec.ts" timestamp="2025-12-19T13:45:00.340Z" hostname="chromium" tests="16" failures="0" skipped="16" time="0" errors="0">
+<testcase name="VM Management › should display VMs list" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should create new VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should validate VM creation form" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should search VMs by name" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should filter VMs by status" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should start stopped VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should stop running VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should reboot VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should edit VM configuration" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should delete VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should prevent deletion of running VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should show VM details" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should sort VMs by column" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should paginate VMs" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should refresh VM list" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should assign IP to VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="auth.spec.ts" timestamp="2025-12-19T13:45:00.340Z" hostname="firefox" tests="14" failures="0" skipped="14" time="0" errors="0">
+<testcase name="Authentication › should display login page" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should login with valid credentials" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should show error with invalid credentials" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should show error with empty fields" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should navigate to forgot password" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should logout successfully" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should persist session after page reload" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should redirect to login when accessing protected route without auth" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should handle password reset flow" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should enforce password requirements" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should redirect to 2FA setup after first login" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should setup 2FA with QR code" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should prompt for 2FA code on login" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should reject invalid 2FA codes" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="vms.spec.ts" timestamp="2025-12-19T13:45:00.340Z" hostname="firefox" tests="16" failures="0" skipped="16" time="0" errors="0">
+<testcase name="VM Management › should display VMs list" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should create new VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should validate VM creation form" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should search VMs by name" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should filter VMs by status" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should start stopped VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should stop running VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should reboot VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should edit VM configuration" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should delete VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should prevent deletion of running VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should show VM details" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should sort VMs by column" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should paginate VMs" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should refresh VM list" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should assign IP to VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="auth.spec.ts" timestamp="2025-12-19T13:45:00.340Z" hostname="webkit" tests="14" failures="0" skipped="14" time="0" errors="0">
+<testcase name="Authentication › should display login page" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should login with valid credentials" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should show error with invalid credentials" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should show error with empty fields" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should navigate to forgot password" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should logout successfully" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should persist session after page reload" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should redirect to login when accessing protected route without auth" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should handle password reset flow" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should enforce password requirements" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should redirect to 2FA setup after first login" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should setup 2FA with QR code" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should prompt for 2FA code on login" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should reject invalid 2FA codes" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="vms.spec.ts" timestamp="2025-12-19T13:45:00.340Z" hostname="webkit" tests="16" failures="0" skipped="16" time="0" errors="0">
+<testcase name="VM Management › should display VMs list" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should create new VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should validate VM creation form" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should search VMs by name" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should filter VMs by status" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should start stopped VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should stop running VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should reboot VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should edit VM configuration" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should delete VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should prevent deletion of running VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should show VM details" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should sort VMs by column" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should paginate VMs" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should refresh VM list" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should assign IP to VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="auth.spec.ts" timestamp="2025-12-19T13:45:00.340Z" hostname="Mobile Chrome" tests="14" failures="0" skipped="14" time="0" errors="0">
+<testcase name="Authentication › should display login page" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should login with valid credentials" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should show error with invalid credentials" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should show error with empty fields" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should navigate to forgot password" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should logout successfully" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should persist session after page reload" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should redirect to login when accessing protected route without auth" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should handle password reset flow" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should enforce password requirements" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should redirect to 2FA setup after first login" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should setup 2FA with QR code" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should prompt for 2FA code on login" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should reject invalid 2FA codes" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="vms.spec.ts" timestamp="2025-12-19T13:45:00.340Z" hostname="Mobile Chrome" tests="16" failures="0" skipped="16" time="0" errors="0">
+<testcase name="VM Management › should display VMs list" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should create new VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should validate VM creation form" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should search VMs by name" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should filter VMs by status" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should start stopped VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should stop running VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should reboot VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should edit VM configuration" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should delete VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should prevent deletion of running VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should show VM details" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should sort VMs by column" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should paginate VMs" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should refresh VM list" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should assign IP to VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="auth.spec.ts" timestamp="2025-12-19T13:45:00.340Z" hostname="Mobile Safari" tests="14" failures="0" skipped="14" time="0" errors="0">
+<testcase name="Authentication › should display login page" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should login with valid credentials" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should show error with invalid credentials" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should show error with empty fields" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should navigate to forgot password" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should logout successfully" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should persist session after page reload" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should redirect to login when accessing protected route without auth" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should handle password reset flow" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication › should enforce password requirements" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should redirect to 2FA setup after first login" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should setup 2FA with QR code" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should prompt for 2FA code on login" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="2FA Authentication › should reject invalid 2FA codes" classname="auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="vms.spec.ts" timestamp="2025-12-19T13:45:00.340Z" hostname="Mobile Safari" tests="16" failures="0" skipped="16" time="0" errors="0">
+<testcase name="VM Management › should display VMs list" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should create new VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should validate VM creation form" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should search VMs by name" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should filter VMs by status" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should start stopped VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should stop running VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should reboot VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should edit VM configuration" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should delete VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should prevent deletion of running VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should show VM details" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should sort VMs by column" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should paginate VMs" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should refresh VM list" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="VM Management › should assign IP to VM" classname="vms.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+</testsuites>

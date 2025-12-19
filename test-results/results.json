@@ -1,0 +1,3175 @@
+{
+  "config": {
+    "configFile": "/var/www/multpanelreact/playwright.config.ts",
+    "rootDir": "/var/www/multpanelreact/tests/e2e",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results/results.json"
+        }
+      ],
+      [
+        "junit",
+        {
+          "outputFile": "test-results/junit.xml"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "/var/www/multpanelreact/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/var/www/multpanelreact/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/var/www/multpanelreact/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "/var/www/multpanelreact/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/var/www/multpanelreact/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "webkit",
+        "name": "webkit",
+        "testDir": "/var/www/multpanelreact/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/var/www/multpanelreact/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "Mobile Chrome",
+        "name": "Mobile Chrome",
+        "testDir": "/var/www/multpanelreact/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/var/www/multpanelreact/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "Mobile Safari",
+        "name": "Mobile Safari",
+        "testDir": "/var/www/multpanelreact/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.57.0",
+    "workers": 2,
+    "webServer": {
+      "command": "npm run dev",
+      "url": "http://192.168.142.237",
+      "reuseExistingServer": true
+    }
+  },
+  "suites": [
+    {
+      "title": "auth.spec.ts",
+      "file": "auth.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Authentication",
+          "file": "auth.spec.ts",
+          "line": 8,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display login page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-0b088bf61d7827992643",
+              "file": "auth.spec.ts",
+              "line": 15,
+              "column": 7
+            },
+            {
+              "title": "should login with valid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-74672ea8d7d6753c2f5c",
+              "file": "auth.spec.ts",
+              "line": 22,
+              "column": 7
+            },
+            {
+              "title": "should show error with invalid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-e046cac58ea6a3e49332",
+              "file": "auth.spec.ts",
+              "line": 35,
+              "column": 7
+            },
+            {
+              "title": "should show error with empty fields",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-9d64f636d98b42c1b6c1",
+              "file": "auth.spec.ts",
+              "line": 45,
+              "column": 7
+            },
+            {
+              "title": "should navigate to forgot password",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-80fe829649ad81954ff0",
+              "file": "auth.spec.ts",
+              "line": 51,
+              "column": 7
+            },
+            {
+              "title": "should logout successfully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-e4d5ddc7448b856855a2",
+              "file": "auth.spec.ts",
+              "line": 58,
+              "column": 7
+            },
+            {
+              "title": "should persist session after page reload",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-3e4bbba016ebf21b58e0",
+              "file": "auth.spec.ts",
+              "line": 78,
+              "column": 7
+            },
+            {
+              "title": "should redirect to login when accessing protected route without auth",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-adf53b182a37773b66aa",
+              "file": "auth.spec.ts",
+              "line": 93,
+              "column": 7
+            },
+            {
+              "title": "should handle password reset flow",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-60353d7e7832fc294416",
+              "file": "auth.spec.ts",
+              "line": 101,
+              "column": 7
+            },
+            {
+              "title": "should enforce password requirements",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-b19611bc78e90d43c70e",
+              "file": "auth.spec.ts",
+              "line": 111,
+              "column": 7
+            },
+            {
+              "title": "should display login page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-4eaec83ab9f52783e3cc",
+              "file": "auth.spec.ts",
+              "line": 15,
+              "column": 7
+            },
+            {
+              "title": "should login with valid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-f1f93290ee72148f8ff6",
+              "file": "auth.spec.ts",
+              "line": 22,
+              "column": 7
+            },
+            {
+              "title": "should show error with invalid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-a47a3be73ffc55eedc4e",
+              "file": "auth.spec.ts",
+              "line": 35,
+              "column": 7
+            },
+            {
+              "title": "should show error with empty fields",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-f8cf8917203dc79ed100",
+              "file": "auth.spec.ts",
+              "line": 45,
+              "column": 7
+            },
+            {
+              "title": "should navigate to forgot password",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-66a4f20455fc21e1b203",
+              "file": "auth.spec.ts",
+              "line": 51,
+              "column": 7
+            },
+            {
+              "title": "should logout successfully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-3e7518451a69732b37f5",
+              "file": "auth.spec.ts",
+              "line": 58,
+              "column": 7
+            },
+            {
+              "title": "should persist session after page reload",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-f70655f787866138a467",
+              "file": "auth.spec.ts",
+              "line": 78,
+              "column": 7
+            },
+            {
+              "title": "should redirect to login when accessing protected route without auth",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-6faa4c483041a160d426",
+              "file": "auth.spec.ts",
+              "line": 93,
+              "column": 7
+            },
+            {
+              "title": "should handle password reset flow",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-d85bfc77be5bcf3323e3",
+              "file": "auth.spec.ts",
+              "line": 101,
+              "column": 7
+            },
+            {
+              "title": "should enforce password requirements",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-8385a3f05f1c740ae0c1",
+              "file": "auth.spec.ts",
+              "line": 111,
+              "column": 7
+            },
+            {
+              "title": "should display login page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-7eb94c1fc5996f3ab154",
+              "file": "auth.spec.ts",
+              "line": 15,
+              "column": 7
+            },
+            {
+              "title": "should login with valid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-27139771fd55b5b0b5e9",
+              "file": "auth.spec.ts",
+              "line": 22,
+              "column": 7
+            },
+            {
+              "title": "should show error with invalid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-3b75a1f2e450722f02e4",
+              "file": "auth.spec.ts",
+              "line": 35,
+              "column": 7
+            },
+            {
+              "title": "should show error with empty fields",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-3a94cc6a9970f82d729d",
+              "file": "auth.spec.ts",
+              "line": 45,
+              "column": 7
+            },
+            {
+              "title": "should navigate to forgot password",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-ce885f479a022815fa9e",
+              "file": "auth.spec.ts",
+              "line": 51,
+              "column": 7
+            },
+            {
+              "title": "should logout successfully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-20ef2eca5621610fcbcb",
+              "file": "auth.spec.ts",
+              "line": 58,
+              "column": 7
+            },
+            {
+              "title": "should persist session after page reload",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-729284855f691bbb02e0",
+              "file": "auth.spec.ts",
+              "line": 78,
+              "column": 7
+            },
+            {
+              "title": "should redirect to login when accessing protected route without auth",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-656a78c1a0cf3dbfa733",
+              "file": "auth.spec.ts",
+              "line": 93,
+              "column": 7
+            },
+            {
+              "title": "should handle password reset flow",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-be4cad2bcad32d2f9cdf",
+              "file": "auth.spec.ts",
+              "line": 101,
+              "column": 7
+            },
+            {
+              "title": "should enforce password requirements",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-2cb74b3aa7f836900444",
+              "file": "auth.spec.ts",
+              "line": 111,
+              "column": 7
+            },
+            {
+              "title": "should display login page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-34aea2d206585aa72168",
+              "file": "auth.spec.ts",
+              "line": 15,
+              "column": 7
+            },
+            {
+              "title": "should login with valid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-18110a7e002c2a0f12cf",
+              "file": "auth.spec.ts",
+              "line": 22,
+              "column": 7
+            },
+            {
+              "title": "should show error with invalid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-e24d411853832b8afadc",
+              "file": "auth.spec.ts",
+              "line": 35,
+              "column": 7
+            },
+            {
+              "title": "should show error with empty fields",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-5af915d468600b814c63",
+              "file": "auth.spec.ts",
+              "line": 45,
+              "column": 7
+            },
+            {
+              "title": "should navigate to forgot password",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-7db92dc6bb3ec613b29c",
+              "file": "auth.spec.ts",
+              "line": 51,
+              "column": 7
+            },
+            {
+              "title": "should logout successfully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-e81aefeebba9a3c9e923",
+              "file": "auth.spec.ts",
+              "line": 58,
+              "column": 7
+            },
+            {
+              "title": "should persist session after page reload",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-02d0e5474302ee33d2ce",
+              "file": "auth.spec.ts",
+              "line": 78,
+              "column": 7
+            },
+            {
+              "title": "should redirect to login when accessing protected route without auth",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-35662ee4482ae0c447d5",
+              "file": "auth.spec.ts",
+              "line": 93,
+              "column": 7
+            },
+            {
+              "title": "should handle password reset flow",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-f026b209286a484630cb",
+              "file": "auth.spec.ts",
+              "line": 101,
+              "column": 7
+            },
+            {
+              "title": "should enforce password requirements",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-84010c101cd5b3d95b11",
+              "file": "auth.spec.ts",
+              "line": 111,
+              "column": 7
+            },
+            {
+              "title": "should display login page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-67b644188d0a6bb49762",
+              "file": "auth.spec.ts",
+              "line": 15,
+              "column": 7
+            },
+            {
+              "title": "should login with valid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-9a28279612b3cec5b01d",
+              "file": "auth.spec.ts",
+              "line": 22,
+              "column": 7
+            },
+            {
+              "title": "should show error with invalid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-d67e368a4ccfa5cc1244",
+              "file": "auth.spec.ts",
+              "line": 35,
+              "column": 7
+            },
+            {
+              "title": "should show error with empty fields",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-ed63a9db70fe2f899688",
+              "file": "auth.spec.ts",
+              "line": 45,
+              "column": 7
+            },
+            {
+              "title": "should navigate to forgot password",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-69a767640ac06af2b0a2",
+              "file": "auth.spec.ts",
+              "line": 51,
+              "column": 7
+            },
+            {
+              "title": "should logout successfully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-cf6de8f132264375dd61",
+              "file": "auth.spec.ts",
+              "line": 58,
+              "column": 7
+            },
+            {
+              "title": "should persist session after page reload",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-6aac001ef112b978f936",
+              "file": "auth.spec.ts",
+              "line": 78,
+              "column": 7
+            },
+            {
+              "title": "should redirect to login when accessing protected route without auth",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-a5109edfcb29984ee6b6",
+              "file": "auth.spec.ts",
+              "line": 93,
+              "column": 7
+            },
+            {
+              "title": "should handle password reset flow",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-b13ca0518320ebb2e0f0",
+              "file": "auth.spec.ts",
+              "line": 101,
+              "column": 7
+            },
+            {
+              "title": "should enforce password requirements",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-0c782246411f93f9473d",
+              "file": "auth.spec.ts",
+              "line": 111,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "2FA Authentication",
+          "file": "auth.spec.ts",
+          "line": 130,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should redirect to 2FA setup after first login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-cbb7345ed7efb0df6918",
+              "file": "auth.spec.ts",
+              "line": 133,
+              "column": 7
+            },
+            {
+              "title": "should setup 2FA with QR code",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-9f241a2c8cf509f5bbfb",
+              "file": "auth.spec.ts",
+              "line": 146,
+              "column": 7
+            },
+            {
+              "title": "should prompt for 2FA code on login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-7c75eff97df011870f9a",
+              "file": "auth.spec.ts",
+              "line": 163,
+              "column": 7
+            },
+            {
+              "title": "should reject invalid 2FA codes",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-4a2f7a46236928d59fa6",
+              "file": "auth.spec.ts",
+              "line": 175,
+              "column": 7
+            },
+            {
+              "title": "should redirect to 2FA setup after first login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-87eb8558c0892794cf9f",
+              "file": "auth.spec.ts",
+              "line": 133,
+              "column": 7
+            },
+            {
+              "title": "should setup 2FA with QR code",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-a304a2718a90fcf38d57",
+              "file": "auth.spec.ts",
+              "line": 146,
+              "column": 7
+            },
+            {
+              "title": "should prompt for 2FA code on login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-dc01d516f55c6c9338d9",
+              "file": "auth.spec.ts",
+              "line": 163,
+              "column": 7
+            },
+            {
+              "title": "should reject invalid 2FA codes",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-bb9b9e69a23799d22195",
+              "file": "auth.spec.ts",
+              "line": 175,
+              "column": 7
+            },
+            {
+              "title": "should redirect to 2FA setup after first login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-393002b41d4a15404b5b",
+              "file": "auth.spec.ts",
+              "line": 133,
+              "column": 7
+            },
+            {
+              "title": "should setup 2FA with QR code",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-2bc09301e77c31da85ad",
+              "file": "auth.spec.ts",
+              "line": 146,
+              "column": 7
+            },
+            {
+              "title": "should prompt for 2FA code on login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-43f82633861bb1a5929a",
+              "file": "auth.spec.ts",
+              "line": 163,
+              "column": 7
+            },
+            {
+              "title": "should reject invalid 2FA codes",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-40c109c01f4a0f81ff24",
+              "file": "auth.spec.ts",
+              "line": 175,
+              "column": 7
+            },
+            {
+              "title": "should redirect to 2FA setup after first login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-8ad2d2ad11cf5e658d04",
+              "file": "auth.spec.ts",
+              "line": 133,
+              "column": 7
+            },
+            {
+              "title": "should setup 2FA with QR code",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-b2e557182aa9cb180fa5",
+              "file": "auth.spec.ts",
+              "line": 146,
+              "column": 7
+            },
+            {
+              "title": "should prompt for 2FA code on login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-3a63dd20c645cf730e32",
+              "file": "auth.spec.ts",
+              "line": 163,
+              "column": 7
+            },
+            {
+              "title": "should reject invalid 2FA codes",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-3eeec279c529f1e4d5a5",
+              "file": "auth.spec.ts",
+              "line": 175,
+              "column": 7
+            },
+            {
+              "title": "should redirect to 2FA setup after first login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-4e650ade25456a7e6343",
+              "file": "auth.spec.ts",
+              "line": 133,
+              "column": 7
+            },
+            {
+              "title": "should setup 2FA with QR code",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-00498d1cdfc0285f203d",
+              "file": "auth.spec.ts",
+              "line": 146,
+              "column": 7
+            },
+            {
+              "title": "should prompt for 2FA code on login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-3a00ec28582b8f7ecd2e",
+              "file": "auth.spec.ts",
+              "line": 163,
+              "column": 7
+            },
+            {
+              "title": "should reject invalid 2FA codes",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-fc0a7b921d658dbc169d",
+              "file": "auth.spec.ts",
+              "line": 175,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "vms.spec.ts",
+      "file": "vms.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "VM Management",
+          "file": "vms.spec.ts",
+          "line": 8,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display VMs list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-6b8ac2b11d47dfcb852e",
+              "file": "vms.spec.ts",
+              "line": 24,
+              "column": 7
+            },
+            {
+              "title": "should create new VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-efc37fcc75f7c3423b34",
+              "file": "vms.spec.ts",
+              "line": 34,
+              "column": 7
+            },
+            {
+              "title": "should validate VM creation form",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-5a843aa03d9e952bbe7b",
+              "file": "vms.spec.ts",
+              "line": 57,
+              "column": 7
+            },
+            {
+              "title": "should search VMs by name",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-88b2f2d343f6657005ee",
+              "file": "vms.spec.ts",
+              "line": 67,
+              "column": 7
+            },
+            {
+              "title": "should filter VMs by status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-360a56b7c229f2643b40",
+              "file": "vms.spec.ts",
+              "line": 78,
+              "column": 7
+            },
+            {
+              "title": "should start stopped VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-beb2ce2f8d55507bc48d",
+              "file": "vms.spec.ts",
+              "line": 91,
+              "column": 7
+            },
+            {
+              "title": "should stop running VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-e2433c7fa1867d46ec69",
+              "file": "vms.spec.ts",
+              "line": 105,
+              "column": 7
+            },
+            {
+              "title": "should reboot VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-5b2d06439b10c00b8ff8",
+              "file": "vms.spec.ts",
+              "line": 123,
+              "column": 7
+            },
+            {
+              "title": "should edit VM configuration",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-2254a49c501abb2c9b5f",
+              "file": "vms.spec.ts",
+              "line": 138,
+              "column": 7
+            },
+            {
+              "title": "should delete VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-9130172e38377d59e154",
+              "file": "vms.spec.ts",
+              "line": 157,
+              "column": 7
+            },
+            {
+              "title": "should prevent deletion of running VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-88fa45c57a40048d3e11",
+              "file": "vms.spec.ts",
+              "line": 188,
+              "column": 7
+            },
+            {
+              "title": "should show VM details",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-cca7208aea1f4d336945",
+              "file": "vms.spec.ts",
+              "line": 198,
+              "column": 7
+            },
+            {
+              "title": "should sort VMs by column",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-c6d602278d2bd3c04a72",
+              "file": "vms.spec.ts",
+              "line": 212,
+              "column": 7
+            },
+            {
+              "title": "should paginate VMs",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-f85078a2ecaee4111331",
+              "file": "vms.spec.ts",
+              "line": 230,
+              "column": 7
+            },
+            {
+              "title": "should refresh VM list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-c50af2d81fbeb0f11211",
+              "file": "vms.spec.ts",
+              "line": 243,
+              "column": 7
+            },
+            {
+              "title": "should assign IP to VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-59e37d593f79eaa8f12d",
+              "file": "vms.spec.ts",
+              "line": 254,
+              "column": 7
+            },
+            {
+              "title": "should display VMs list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-ab2d9a1aecc1ffa2ff07",
+              "file": "vms.spec.ts",
+              "line": 24,
+              "column": 7
+            },
+            {
+              "title": "should create new VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-d57a7e28fcd6670c3ad1",
+              "file": "vms.spec.ts",
+              "line": 34,
+              "column": 7
+            },
+            {
+              "title": "should validate VM creation form",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-e765744a0b3cc79e87ff",
+              "file": "vms.spec.ts",
+              "line": 57,
+              "column": 7
+            },
+            {
+              "title": "should search VMs by name",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-ec81aaa237886904a881",
+              "file": "vms.spec.ts",
+              "line": 67,
+              "column": 7
+            },
+            {
+              "title": "should filter VMs by status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-5780ee637fd37f3b1212",
+              "file": "vms.spec.ts",
+              "line": 78,
+              "column": 7
+            },
+            {
+              "title": "should start stopped VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-12687f0bb7e57027bb40",
+              "file": "vms.spec.ts",
+              "line": 91,
+              "column": 7
+            },
+            {
+              "title": "should stop running VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-4b950f38e7619faa9236",
+              "file": "vms.spec.ts",
+              "line": 105,
+              "column": 7
+            },
+            {
+              "title": "should reboot VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-8951d1d9c76e72e3703f",
+              "file": "vms.spec.ts",
+              "line": 123,
+              "column": 7
+            },
+            {
+              "title": "should edit VM configuration",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-b71fdc458e19de7c5860",
+              "file": "vms.spec.ts",
+              "line": 138,
+              "column": 7
+            },
+            {
+              "title": "should delete VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-d793ae28647061164d10",
+              "file": "vms.spec.ts",
+              "line": 157,
+              "column": 7
+            },
+            {
+              "title": "should prevent deletion of running VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-7e0a5c145791aaf206c1",
+              "file": "vms.spec.ts",
+              "line": 188,
+              "column": 7
+            },
+            {
+              "title": "should show VM details",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-cd6eda37ccccb97ee750",
+              "file": "vms.spec.ts",
+              "line": 198,
+              "column": 7
+            },
+            {
+              "title": "should sort VMs by column",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-01ca1fcbb4492a599397",
+              "file": "vms.spec.ts",
+              "line": 212,
+              "column": 7
+            },
+            {
+              "title": "should paginate VMs",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-55e61f0a22c8a6f1b172",
+              "file": "vms.spec.ts",
+              "line": 230,
+              "column": 7
+            },
+            {
+              "title": "should refresh VM list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-37f906993b7f0c7789ef",
+              "file": "vms.spec.ts",
+              "line": 243,
+              "column": 7
+            },
+            {
+              "title": "should assign IP to VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-d855929245e6f90a2733",
+              "file": "vms.spec.ts",
+              "line": 254,
+              "column": 7
+            },
+            {
+              "title": "should display VMs list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-cbfa5220b6c2f8aa0a2f",
+              "file": "vms.spec.ts",
+              "line": 24,
+              "column": 7
+            },
+            {
+              "title": "should create new VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-0ed791bfe0a733f5c57f",
+              "file": "vms.spec.ts",
+              "line": 34,
+              "column": 7
+            },
+            {
+              "title": "should validate VM creation form",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-daa305b5da3eb25f12d9",
+              "file": "vms.spec.ts",
+              "line": 57,
+              "column": 7
+            },
+            {
+              "title": "should search VMs by name",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-56a14ca5ecda392fa092",
+              "file": "vms.spec.ts",
+              "line": 67,
+              "column": 7
+            },
+            {
+              "title": "should filter VMs by status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-a58090012df668f15c1d",
+              "file": "vms.spec.ts",
+              "line": 78,
+              "column": 7
+            },
+            {
+              "title": "should start stopped VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-23bd8795085a0ed11889",
+              "file": "vms.spec.ts",
+              "line": 91,
+              "column": 7
+            },
+            {
+              "title": "should stop running VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-18f33ac0b7c9bf37b99c",
+              "file": "vms.spec.ts",
+              "line": 105,
+              "column": 7
+            },
+            {
+              "title": "should reboot VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-9a57d1fd36371f9ec8e7",
+              "file": "vms.spec.ts",
+              "line": 123,
+              "column": 7
+            },
+            {
+              "title": "should edit VM configuration",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-f3fb5d3ca1ff8e8d68fe",
+              "file": "vms.spec.ts",
+              "line": 138,
+              "column": 7
+            },
+            {
+              "title": "should delete VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-49db7bbde3299cf334ff",
+              "file": "vms.spec.ts",
+              "line": 157,
+              "column": 7
+            },
+            {
+              "title": "should prevent deletion of running VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-b6afd78bc769cd08c9c9",
+              "file": "vms.spec.ts",
+              "line": 188,
+              "column": 7
+            },
+            {
+              "title": "should show VM details",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-2fd4c9ca258707d1a40b",
+              "file": "vms.spec.ts",
+              "line": 198,
+              "column": 7
+            },
+            {
+              "title": "should sort VMs by column",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-3ed78a4fd3ff84baa856",
+              "file": "vms.spec.ts",
+              "line": 212,
+              "column": 7
+            },
+            {
+              "title": "should paginate VMs",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-54bea88110711f33de64",
+              "file": "vms.spec.ts",
+              "line": 230,
+              "column": 7
+            },
+            {
+              "title": "should refresh VM list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-311bf839f36158448bf1",
+              "file": "vms.spec.ts",
+              "line": 243,
+              "column": 7
+            },
+            {
+              "title": "should assign IP to VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-196694eca60b3d729513",
+              "file": "vms.spec.ts",
+              "line": 254,
+              "column": 7
+            },
+            {
+              "title": "should display VMs list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-e0fc1f9e292794370528",
+              "file": "vms.spec.ts",
+              "line": 24,
+              "column": 7
+            },
+            {
+              "title": "should create new VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-c2c2a7eca66696634a22",
+              "file": "vms.spec.ts",
+              "line": 34,
+              "column": 7
+            },
+            {
+              "title": "should validate VM creation form",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-14e00c80c517df7f66b8",
+              "file": "vms.spec.ts",
+              "line": 57,
+              "column": 7
+            },
+            {
+              "title": "should search VMs by name",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-a234ae3007888efbee37",
+              "file": "vms.spec.ts",
+              "line": 67,
+              "column": 7
+            },
+            {
+              "title": "should filter VMs by status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-9f6f9614ede5fcd17a9a",
+              "file": "vms.spec.ts",
+              "line": 78,
+              "column": 7
+            },
+            {
+              "title": "should start stopped VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-9fcab1500fbe4cfa6e7d",
+              "file": "vms.spec.ts",
+              "line": 91,
+              "column": 7
+            },
+            {
+              "title": "should stop running VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-d6979962d6f247d2aeca",
+              "file": "vms.spec.ts",
+              "line": 105,
+              "column": 7
+            },
+            {
+              "title": "should reboot VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-f3839d417f8445f099d9",
+              "file": "vms.spec.ts",
+              "line": 123,
+              "column": 7
+            },
+            {
+              "title": "should edit VM configuration",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-5c876acbd750b0ed515b",
+              "file": "vms.spec.ts",
+              "line": 138,
+              "column": 7
+            },
+            {
+              "title": "should delete VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-458d01068562c7538b67",
+              "file": "vms.spec.ts",
+              "line": 157,
+              "column": 7
+            },
+            {
+              "title": "should prevent deletion of running VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-369c401bb0ae9296f022",
+              "file": "vms.spec.ts",
+              "line": 188,
+              "column": 7
+            },
+            {
+              "title": "should show VM details",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-f64d6b15ebe33ba38093",
+              "file": "vms.spec.ts",
+              "line": 198,
+              "column": 7
+            },
+            {
+              "title": "should sort VMs by column",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-821e93d3676280bb8967",
+              "file": "vms.spec.ts",
+              "line": 212,
+              "column": 7
+            },
+            {
+              "title": "should paginate VMs",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-eb3bd8b5df59d2cacdc3",
+              "file": "vms.spec.ts",
+              "line": 230,
+              "column": 7
+            },
+            {
+              "title": "should refresh VM list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-2ef1a9d5beb3225c815e",
+              "file": "vms.spec.ts",
+              "line": 243,
+              "column": 7
+            },
+            {
+              "title": "should assign IP to VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-27bc14f700b11d19ec2c",
+              "file": "vms.spec.ts",
+              "line": 254,
+              "column": 7
+            },
+            {
+              "title": "should display VMs list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-973ec3e11f1d6e8b07bd",
+              "file": "vms.spec.ts",
+              "line": 24,
+              "column": 7
+            },
+            {
+              "title": "should create new VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-d34a3abe941071838dc9",
+              "file": "vms.spec.ts",
+              "line": 34,
+              "column": 7
+            },
+            {
+              "title": "should validate VM creation form",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-b0b678dd520888555283",
+              "file": "vms.spec.ts",
+              "line": 57,
+              "column": 7
+            },
+            {
+              "title": "should search VMs by name",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-fe17b33b4488a5a0d06e",
+              "file": "vms.spec.ts",
+              "line": 67,
+              "column": 7
+            },
+            {
+              "title": "should filter VMs by status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-be741766437fcd981b05",
+              "file": "vms.spec.ts",
+              "line": 78,
+              "column": 7
+            },
+            {
+              "title": "should start stopped VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-2417c160f01c2190dd08",
+              "file": "vms.spec.ts",
+              "line": 91,
+              "column": 7
+            },
+            {
+              "title": "should stop running VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-1b14c1061d62791bcfe8",
+              "file": "vms.spec.ts",
+              "line": 105,
+              "column": 7
+            },
+            {
+              "title": "should reboot VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-163ddf2bd226d572691d",
+              "file": "vms.spec.ts",
+              "line": 123,
+              "column": 7
+            },
+            {
+              "title": "should edit VM configuration",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-dff066e6d76fa7122303",
+              "file": "vms.spec.ts",
+              "line": 138,
+              "column": 7
+            },
+            {
+              "title": "should delete VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-6879cf44dd54872a14ce",
+              "file": "vms.spec.ts",
+              "line": 157,
+              "column": 7
+            },
+            {
+              "title": "should prevent deletion of running VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-d00b3e582754875d33f0",
+              "file": "vms.spec.ts",
+              "line": 188,
+              "column": 7
+            },
+            {
+              "title": "should show VM details",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-b5a7bab5faab930756f4",
+              "file": "vms.spec.ts",
+              "line": 198,
+              "column": 7
+            },
+            {
+              "title": "should sort VMs by column",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-3d64a02aa0f08f30f840",
+              "file": "vms.spec.ts",
+              "line": 212,
+              "column": 7
+            },
+            {
+              "title": "should paginate VMs",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-96b4a699c82795d7c9d4",
+              "file": "vms.spec.ts",
+              "line": 230,
+              "column": 7
+            },
+            {
+              "title": "should refresh VM list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-50919fb22ebb228da40e",
+              "file": "vms.spec.ts",
+              "line": 243,
+              "column": 7
+            },
+            {
+              "title": "should assign IP to VM",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Safari",
+                  "projectName": "Mobile Safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "71ebe74011de3d7bd2ec-6af9dc39f382bad2edf4",
+              "file": "vms.spec.ts",
+              "line": 254,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-12-19T13:45:00.142Z",
+    "duration": 199.73199999999997,
+    "expected": 0,
+    "skipped": 150,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

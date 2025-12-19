@@ -1,0 +1,36 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "Running pre-commit checks..."
+
+# Run backend tests
+echo "Running backend tests..."
+cd backend
+npm test -- --bail --findRelatedTests || {
+  echo "Backend tests failed. Commit aborted."
+  exit 1
+}
+
+# Run frontend tests
+echo "Running frontend tests..."
+cd ../frontend
+npm test -- --bail --watchAll=false || {
+  echo "Frontend tests failed. Commit aborted."
+  exit 1
+}
+
+# Run TypeScript checks
+echo "Running TypeScript checks..."
+cd ../backend
+npx tsc --noEmit || {
+  echo "Backend TypeScript check failed. Commit aborted."
+  exit 1
+}
+
+cd ../frontend
+npx tsc --noEmit || {
+  echo "Frontend TypeScript check failed. Commit aborted."
+  exit 1
+}
+
+echo "All pre-commit checks passed!"

@@ -46,6 +46,7 @@ import NotificationsPage from './pages/NotificationsPage';
 import ESXiPage from './pages/ESXiPage';
 import { IPTrackingPage } from './pages/IPTrackingPage';
 import IPReservationsPage from './pages/IPReservationsPage';
+import WebhooksPage from "./pages/WebhooksPage";import SubscriptionPlansPage from "./pages/SubscriptionPlansPage";import RateLimitsPage from "./pages/RateLimitsPage";import NotificationSettingsPage from "./pages/NotificationSettingsPage";import SupportTicketsPage from "./pages/SupportTicketsPage";import EmailTemplatesPage from "./pages/EmailTemplatesPage";import FAQManagementPage from "./pages/FAQManagementPage";import HelpAnalyticsPage from "./pages/HelpAnalyticsPage";import CategoryManagementPage from "./pages/CategoryManagementPage";
 import { MainLayout } from './components/layout/MainLayout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
@@ -117,6 +118,7 @@ function App() {
             <Route path="esxi-import" element={<ESXiPage />} />
             <Route path="ip-tracking" element={<IPTrackingPage />} />
             <Route path="ip-reservations" element={<IPReservationsPage />} />
+<Route path="webhooks" element={<WebhooksPage />} />            <Route path="subscriptions" element={<SubscriptionPlansPage />} />            <Route path="rate-limits" element={<RateLimitsPage />} />            <Route path="notification-settings" element={<NotificationSettingsPage />} />            <Route path="support-tickets" element={<SupportTicketsPage />} />            <Route path="email-templates" element={<EmailTemplatesPage />} />            <Route path="help-admin/faqs" element={<FAQManagementPage />} />            <Route path="help-admin/analytics" element={<HelpAnalyticsPage />} />            <Route path="help-admin/categories" element={<CategoryManagementPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Routes>

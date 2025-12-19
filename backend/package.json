@@ -16,7 +16,10 @@
     "prisma:studio": "prisma studio",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
-    "format": "prettier --write \"src/**/*.ts\""
+    "format": "prettier --write \"src/**/*.ts\"",
+    "test:integration": "jest --testPathPattern=Controller.test.ts",
+    "test:unit": "jest --testPathPattern=Service.test.ts",
+    "test:e2e": "cd .. && npx playwright test"
   },
   "keywords": [
     "proxmox",
