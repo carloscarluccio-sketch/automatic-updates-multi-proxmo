@@ -4,7 +4,7 @@
  */
 
 import request from 'supertest';
-import { app } from '../index';
+import app from '../index';
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
@@ -30,7 +30,7 @@ describe('Authentication Controller', () => {
       data: {
         username: 'testuser',
         email: 'test@example.com',
-        password: hashedPassword,
+        password_hash: hashedPassword,
         role: 'user',
         company_id: testCompany.id,
         status: 'active',
@@ -51,7 +51,7 @@ describe('Authentication Controller', () => {
         .post('/api/auth/login')
         .send({
           username: 'testuser',
-          password: 'Test123!',
+          password_hash: 'Test123!',
         });
 
       expect(response.status).toBe(200);
@@ -70,7 +70,7 @@ describe('Authentication Controller', () => {
         .post('/api/auth/login')
         .send({
           username: 'testuser',
-          password: 'WrongPassword',
+          password_hash: 'WrongPassword',
         });
 
       expect(response.status).toBe(401);
@@ -83,7 +83,7 @@ describe('Authentication Controller', () => {
         .post('/api/auth/login')
         .send({
           username: 'nonexistent',
-          password: 'Test123!',
+          password_hash: 'Test123!',
         });
 
       expect(response.status).toBe(401);
@@ -97,7 +97,7 @@ describe('Authentication Controller', () => {
         data: {
           username: 'inactive',
           email: 'inactive@example.com',
-          password: hashedPassword,
+          password_hash: hashedPassword,
           role: 'user',
           company_id: testCompany.id,
           status: 'inactive',
@@ -108,7 +108,7 @@ describe('Authentication Controller', () => {
         .post('/api/auth/login')
         .send({
           username: 'inactive',
-          password: 'Test123!',
+          password_hash: 'Test123!',
         });
 
       expect(response.status).toBe(401);
@@ -125,7 +125,7 @@ describe('Authentication Controller', () => {
             .post('/api/auth/login')
             .send({
               username: 'testuser',
-              password: 'WrongPassword',
+              password_hash: 'WrongPassword',
             })
         );
       }
@@ -251,7 +251,7 @@ describe('Authentication Controller', () => {
         .post('/api/auth/login')
         .send({
           username: 'testuser',
-          password: 'NewTest456!',
+          password_hash: 'NewTest456!',
         });
 
       expect(loginResponse.status).toBe(200);
@@ -260,7 +260,7 @@ describe('Authentication Controller', () => {
       const hashedPassword = await bcrypt.hash('Test123!', 10);
       await prisma.users.update({
         where: { id: testUser.id },
-        data: { password: hashedPassword },
+        data: { password_hash: hashedPassword },
       });
     });
 

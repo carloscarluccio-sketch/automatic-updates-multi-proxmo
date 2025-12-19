@@ -19,6 +19,8 @@ import {
   listAutoShutdownVMs
 } from '../controllers/vmAutoShutdownController';
 import { authenticate } from '../middlewares/auth';
+import { vmOperationsLimiter } from '../middlewares/rateLimiter';
+import { validateRequiredFields } from '../middlewares/inputValidation';
 import { trackVMActivity } from '../middlewares/vmActivityMiddleware';
 import { bulkVMAction, bulkVMUpdate } from '../controllers/bulkVMController';
 
@@ -48,13 +50,13 @@ router.get('/:id/status', trackVMActivity, getVMStatus);
 router.get('/:id/console', trackVMActivity, getVMConsole);
 
 // Create VM
-router.post('/', createVM);
+router.post('/', vmOperationsLimiter, validateRequiredFields(['name', 'vmid', 'node', 'cluster_id']), createVM);
 
 // Clone VM (with activity tracking for source VM)
-router.post('/:id/clone', trackVMActivity, cloneVM);
+router.post('/:id/clone', vmOperationsLimiter, trackVMActivity, cloneVM);
 
 // Control VM - start/stop/restart (with activity tracking)
-router.post('/:id/control', trackVMActivity, controlVM);
+router.post('/:id/control', vmOperationsLimiter, trackVMActivity, controlVM);
 
 // Assign VM to project (with activity tracking)
 router.post('/:id/assign-project', trackVMActivity, assignVMToProject);
@@ -68,6 +70,6 @@ router.patch('/:id/auto-shutdown', updateAutoShutdown);
 router.put('/:id', trackVMActivity, updateVM);
 
 // Delete VM (activity tracking not needed for deletion)
-router.delete('/:id', deleteVM);
+router.delete('/:id', vmOperationsLimiter, deleteVM);
 
 export default router;

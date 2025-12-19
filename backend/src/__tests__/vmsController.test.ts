@@ -4,7 +4,7 @@
  */
 
 import request from 'supertest';
-import { app } from '../index';
+import app from '../index';
 import { PrismaClient } from '@prisma/client';
 import * as jwt from 'jsonwebtoken';
 
@@ -32,7 +32,7 @@ describe('VMs Controller', () => {
       data: {
         username: 'vmuser',
         email: 'vmuser@example.com',
-        password: 'hashedpass',
+        password_hash: 'hashedpass',
         role: 'user',
         company_id: testCompany.id,
         status: 'active',
@@ -44,7 +44,7 @@ describe('VMs Controller', () => {
       data: {
         username: 'vmsuperadmin',
         email: 'vmsuperadmin@example.com',
-        password: 'hashedpass',
+        password_hash: 'hashedpass',
         role: 'super_admin',
         status: 'active',
       },
@@ -85,7 +85,7 @@ describe('VMs Controller', () => {
           company_id: testCompany.id,
           cluster_id: testCluster.id,
           node: 'pve1',
-          cores: 2,
+          cpu_cores: 2,
           memory: 2048,
           disk: 20,
           status: 'running',
@@ -117,7 +117,12 @@ describe('VMs Controller', () => {
     it('should filter VMs by company for regular users', async () => {
       // Create VM for different company
       const otherCompany = await prisma.companies.create({
-        data: { name: 'Other Company', status: 'active' },
+        data: {
+        name: 'Other Company',
+        status: 'active',
+        owner_name: 'Test Owner',
+        primary_email: 'othercompany@test.com'
+      },
       });
 
       const otherVM = await prisma.virtual_machines.create({
@@ -127,7 +132,7 @@ describe('VMs Controller', () => {
           company_id: otherCompany.id,
           cluster_id: testCluster.id,
           node: 'pve1',
-          cores: 1,
+          cpu_cores: 1,
           memory: 1024,
           disk: 10,
         },
@@ -174,7 +179,7 @@ describe('VMs Controller', () => {
           name: 'new-test-vm',
           cluster_id: testCluster.id,
           node: 'pve1',
-          cores: 4,
+          cpu_cores: 4,
           memory: 4096,
           disk: 50,
           network: {
@@ -189,7 +194,7 @@ describe('VMs Controller', () => {
       expect(response.body.data).toMatchObject({
         vmid: 200,
         name: 'new-test-vm',
-        cores: 4,
+        cpu_cores: 4,
         memory: 4096,
       });
 
@@ -205,7 +210,7 @@ describe('VMs Controller', () => {
           company_id: testCompany.id,
           cluster_id: testCluster.id,
           node: 'pve1',
-          cores: 2,
+          cpu_cores: 2,
           memory: 2048,
           disk: 20,
         },
@@ -219,7 +224,7 @@ describe('VMs Controller', () => {
           name: 'duplicate-vmid',
           cluster_id: testCluster.id,
           node: 'pve1',
-          cores: 2,
+          cpu_cores: 2,
           memory: 2048,
           disk: 20,
         });
@@ -252,7 +257,7 @@ describe('VMs Controller', () => {
           name: 'tiny-vm',
           cluster_id: testCluster.id,
           node: 'pve1',
-          cores: 0,
+          cpu_cores: 0,
           memory: 128,
           disk: 5,
         });
@@ -273,7 +278,7 @@ describe('VMs Controller', () => {
           company_id: testCompany.id,
           cluster_id: testCluster.id,
           node: 'pve1',
-          cores: 2,
+          cpu_cores: 2,
           memory: 2048,
           disk: 20,
         },
@@ -289,7 +294,7 @@ describe('VMs Controller', () => {
         .put(`/api/vms/${vmToUpdate.id}`)
         .set('Authorization', `Bearer ${userToken}`)
         .send({
-          cores: 4,
+          cpu_cores: 4,
           memory: 8192,
         });
 
@@ -297,14 +302,19 @@ describe('VMs Controller', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data).toMatchObject({
         id: vmToUpdate.id,
-        cores: 4,
+        cpu_cores: 4,
         memory: 8192,
       });
     });
 
     it('should prevent users from updating other company VMs', async () => {
       const otherCompany = await prisma.companies.create({
-        data: { name: 'Other Company 2', status: 'active' },
+        data: {
+        name: 'Other Company 2',
+        status: 'active',
+        owner_name: 'Test Owner',
+        primary_email: 'othercompany2@test.com'
+      },
       });
 
       const otherVM = await prisma.virtual_machines.create({
@@ -314,7 +324,7 @@ describe('VMs Controller', () => {
           company_id: otherCompany.id,
           cluster_id: testCluster.id,
           node: 'pve1',
-          cores: 2,
+          cpu_cores: 2,
           memory: 2048,
           disk: 20,
         },
@@ -323,7 +333,7 @@ describe('VMs Controller', () => {
       const response = await request(app)
         .put(`/api/vms/${otherVM.id}`)
         .set('Authorization', `Bearer ${userToken}`)
-        .send({ cores: 8 });
+        .send({ cpu_cores: 8 });
 
       expect(response.status).toBe(403);
       expect(response.body.message).toContain('permission');
@@ -336,7 +346,7 @@ describe('VMs Controller', () => {
       const response = await request(app)
         .put(`/api/vms/${vmToUpdate.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ cores: 8 });
+        .send({ cpu_cores: 8 });
 
       expect(response.status).toBe(200);
       expect(response.body.data.cores).toBe(8);
@@ -354,7 +364,7 @@ describe('VMs Controller', () => {
           company_id: testCompany.id,
           cluster_id: testCluster.id,
           node: 'pve1',
-          cores: 2,
+          cpu_cores: 2,
           memory: 2048,
           disk: 20,
           status: 'stopped',
@@ -412,7 +422,7 @@ describe('VMs Controller', () => {
           company_id: testCompany.id,
           cluster_id: testCluster.id,
           node: 'pve1',
-          cores: 2,
+          cpu_cores: 2,
           memory: 2048,
           disk: 20,
         },
@@ -440,7 +450,7 @@ describe('VMs Controller', () => {
           company_id: testCompany.id,
           cluster_id: testCluster.id,
           node: 'pve1',
-          cores: 2,
+          cpu_cores: 2,
           memory: 2048,
           disk: 20,
           status: 'running',

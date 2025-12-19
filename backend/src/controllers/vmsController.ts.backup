@@ -5,53 +5,41 @@ import { AuthRequest } from '../middlewares/auth';
 import ProxmoxAPI from '../utils/proxmoxApi';
 import { decrypt } from '../utils/encryption';
 import { logVMActivity } from '../utils/activityLogger';
+import { validateIP } from "./ipConflictValidator";
 
 export const getVMs = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { role, company_id } = req.user!;
     let vms;
-    if (role === 'super_admin') {
-      vms = await prisma.virtual_machines.findMany({
-        where: {
-          status: { not: 'deleted' }  // Exclude deleted VMs
-        },
-        select: {
-          id: true,
-          name: true,
-          vmid: true,
-          node: true,
-          status: true,
-          cpu_cores: true,
-          memory_mb: true,
-          storage_gb: true,
-          cluster_id: true,
-          company_id: true,
-          created_at: true
-        },
-        orderBy: { created_at: 'desc' },
-      });
-    } else {
-      vms = await prisma.virtual_machines.findMany({
-        where: {
-          ...(company_id !== null ? { company_id } : {}),
-          status: { not: 'deleted' }  // Exclude deleted VMs
-        },
-        select: {
-          id: true,
-          name: true,
-          vmid: true,
-          node: true,
-          status: true,
-          cpu_cores: true,
-          memory_mb: true,
-          storage_gb: true,
-          cluster_id: true,
-          company_id: true,
-          created_at: true
-        },
-        orderBy: { created_at: 'desc' },
-      });
+
+    const whereClause: any = {
+      deleted_at: null  // Use soft delete flag
+    };
+
+    if (role !== 'super_admin' && company_id !== null) {
+      whereClause.company_id = company_id;
     }
+
+    vms = await prisma.virtual_machines.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        name: true,
+        vmid: true,
+        node: true,
+        status: true,
+        cpu_cores: true,
+        memory_mb: true,
+        storage_gb: true,
+        cluster_id: true,
+        company_id: true,
+        project_id: true,
+        deleted_at: true,
+        created_at: true
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
     res.json({ success: true, data: vms });
   } catch (error: any) {
     logger.error('Get VMs error:', error);
@@ -91,17 +79,18 @@ export const getVMStatus = async (req: AuthRequest, res: Response): Promise<void
 };
 
 export const controlVM = async (req: AuthRequest, res: Response): Promise<void> => {
+  const { id } = req.params;
+  const { action } = req.body;
+  const { role, company_id, id: userId } = req.user!;
+
+  if (!['start', 'stop', 'restart'].includes(action)) {
+    res.status(400).json({ success: false, message: 'Invalid action. Must be start, stop, or restart' });
+    return;
+  }
+
+  let vm;
   try {
-    const { id } = req.params;
-    const { action } = req.body;
-    const { role, company_id, id: userId } = req.user!;
-
-    if (!['start', 'stop', 'restart'].includes(action)) {
-      res.status(400).json({ success: false, message: 'Invalid action. Must be start, stop, or restart' });
-      return;
-    }
-
-    const vm = await prisma.virtual_machines.findFirst({
+    vm = await prisma.virtual_machines.findFirst({
       where: { id: Number(id), ...(role !== 'super_admin' && company_id !== null ? { company_id } : {}) },
       include: { proxmox_clusters: true },
     });
@@ -174,12 +163,42 @@ export const controlVM = async (req: AuthRequest, res: Response): Promise<void> 
       throw vmError;
     }
   } catch (error: any) {
+    console.error('Control VM error:', error);
+    console.error('Control VM error response:', error.response?.data);
+
+    // Handle specific error cases
+    if (error.message === 'VM_ALREADY_RUNNING' && vm) {
+      res.status(400).json({
+        success: false,
+        message: 'VM is already running',
+        error: 'VM_ALREADY_RUNNING',
+        details: `VM ${vm.name} (ID: ${vm.vmid}) is already running on node ${vm.node}.`
+      });
+      return;
+    }
+
+    if (error.message === 'VM_ALREADY_STOPPED' && vm) {
+      res.status(400).json({
+        success: false,
+        message: 'VM is already stopped',
+        error: 'VM_ALREADY_STOPPED',
+        details: `VM ${vm.name} (ID: ${vm.vmid}) is already stopped on node ${vm.node}.`
+      });
+      return;
+    }
+
+    // Extract detailed error from Proxmox if available
+    const proxmoxError = error.response?.data?.errors || error.response?.data?.message || error.message;
+
     logger.error('Control VM error:', error);
+    logger.error('Control VM error response:', error.response?.data);
+
     res.status(500).json({
       success: false,
       message: 'Failed to control VM',
       error: error.message,
-      details: 'The VM control operation failed. Please check if the cluster is accessible.'
+      proxmoxError: proxmoxError,
+      details: 'The VM control operation failed. Please check if the cluster is accessible and the VM is in the correct state.'
     });
   }
 };
@@ -227,6 +246,25 @@ export const createVM = async (req: AuthRequest, res: Response): Promise<void> =
     if (!cluster.port) {
       res.status(400).json({ success: false, message: 'Cluster port not configured' });
       return;
+    }
+
+    // Validate cluster access for company
+    // Super admin can use any cluster, regular users need assigned cluster
+    if (role !== 'super_admin' && company_id) {
+      const hasAccess = await prisma.company_clusters.findFirst({
+        where: {
+          company_id: Number(company_id),
+          cluster_id: Number(cluster_id)
+        }
+      });
+
+      if (!hasAccess) {
+        res.status(403).json({
+          success: false,
+          message: `Access denied: Cluster "${cluster.name}" is not assigned to your company. Please contact your administrator.`
+        });
+        return;
+      }
     }
 
     try {
@@ -765,6 +803,279 @@ export const getConsoleTicket = async (req: AuthRequest, res: Response): Promise
       success: false,
       message: 'Failed to get console ticket',
       error: error.message
+    });
+  }
+};
+
+// ============================================================================
+// VM SYNC/PURGE FUNCTIONS - Check VM existence in Proxmox
+// ============================================================================
+
+// Sync VMs with Proxmox - Check which VMs still exist
+export const syncVMs = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { role, company_id } = req.user!;
+
+    const whereClause: any = { deleted_at: null };
+    if (role !== 'super_admin' && company_id !== null) {
+      whereClause.company_id = company_id;
+    }
+
+    const vms = await prisma.virtual_machines.findMany({
+      where: whereClause,
+      include: { proxmox_clusters: true },
+    });
+
+    const syncResults = {
+      total: vms.length,
+      synced: 0,
+      not_found: 0,
+      errors: 0,
+      details: [] as any[]
+    };
+
+    for (const vm of vms) {
+      try {
+        if (!vm.proxmox_clusters || !vm.proxmox_clusters.port) {
+          syncResults.errors++;
+          syncResults.details.push({
+            vm_id: vm.id,
+            name: vm.name,
+            vmid: vm.vmid,
+            status: 'error',
+            message: 'Cluster not configured'
+          });
+          continue;
+        }
+
+        const decryptedPassword = decrypt(vm.proxmox_clusters.password_encrypted);
+        const proxmox = new ProxmoxAPI({
+          host: vm.proxmox_clusters.host,
+          port: vm.proxmox_clusters.port,
+          username: vm.proxmox_clusters.username
+        }, decryptedPassword);
+
+        try {
+          const status = await proxmox.getVMStatus(vm.node, vm.vmid);
+          await prisma.virtual_machines.update({
+            where: { id: vm.id },
+            data: { status: status.status }
+          });
+
+          syncResults.synced++;
+          syncResults.details.push({
+            vm_id: vm.id,
+            name: vm.name,
+            vmid: vm.vmid,
+            status: 'synced',
+            proxmox_status: status.status
+          });
+        } catch (proxmoxError: any) {
+          if (proxmoxError.message.includes('500') || proxmoxError.message.includes('not exist')) {
+            syncResults.not_found++;
+            syncResults.details.push({
+              vm_id: vm.id,
+              name: vm.name,
+              vmid: vm.vmid,
+              status: 'not_found_in_proxmox',
+              message: 'VM exists in database but not in Proxmox cluster'
+            });
+          } else {
+            throw proxmoxError;
+          }
+        }
+      } catch (error: any) {
+        logger.error('Error syncing VM ' + vm.id + ':', error);
+        syncResults.errors++;
+        syncResults.details.push({
+          vm_id: vm.id,
+          name: vm.name,
+          vmid: vm.vmid,
+          status: 'error',
+          message: error.message
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'VM sync completed',
+      data: syncResults
+    });
+  } catch (error: any) {
+    logger.error('Sync VMs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to sync VMs',
+      error: error.message
+    });
+  }
+};
+
+// Purge ghost VMs - Mark as deleted if not found in Proxmox
+export const purgeGhostVMs = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { role, company_id } = req.user!;
+
+    const whereClause: any = { deleted_at: null };
+    if (role !== 'super_admin' && company_id !== null) {
+      whereClause.company_id = company_id;
+    }
+
+    const vms = await prisma.virtual_machines.findMany({
+      where: whereClause,
+      include: { proxmox_clusters: true },
+    });
+
+    const purgeResults = {
+      total: vms.length,
+      checked: 0,
+      purged: 0,
+      kept: 0,
+      errors: 0,
+      details: [] as any[]
+    };
+
+    for (const vm of vms) {
+      try {
+        purgeResults.checked++;
+
+        if (!vm.proxmox_clusters || !vm.proxmox_clusters.port) {
+          purgeResults.errors++;
+          purgeResults.details.push({
+            vm_id: vm.id,
+            name: vm.name,
+            vmid: vm.vmid,
+            action: 'error',
+            message: 'Cluster not configured'
+          });
+          continue;
+        }
+
+        const decryptedPassword = decrypt(vm.proxmox_clusters.password_encrypted);
+        const proxmox = new ProxmoxAPI({
+          host: vm.proxmox_clusters.host,
+          port: vm.proxmox_clusters.port,
+          username: vm.proxmox_clusters.username
+        }, decryptedPassword);
+
+        try {
+          await proxmox.getVMStatus(vm.node, vm.vmid);
+          purgeResults.kept++;
+          purgeResults.details.push({
+            vm_id: vm.id,
+            name: vm.name,
+            vmid: vm.vmid,
+            action: 'kept',
+            message: 'VM exists in Proxmox'
+          });
+        } catch (proxmoxError: any) {
+          if (proxmoxError.message.includes('500') || proxmoxError.message.includes('not exist')) {
+            await prisma.virtual_machines.update({
+              where: { id: vm.id },
+              data: {
+                deleted_at: new Date(),
+                status: 'deleted'
+              }
+            });
+
+            purgeResults.purged++;
+            purgeResults.details.push({
+              vm_id: vm.id,
+              name: vm.name,
+              vmid: vm.vmid,
+              action: 'purged',
+              message: 'VM not found in Proxmox, marked as deleted'
+            });
+
+            logger.info('[PURGE] Marked VM ' + vm.name + ' (ID: ' + vm.id + ', VMID: ' + vm.vmid + ') as deleted');
+          } else {
+            throw proxmoxError;
+          }
+        }
+      } catch (error: any) {
+        logger.error('Error checking VM ' + vm.id + ' for purge:', error);
+        purgeResults.errors++;
+        purgeResults.details.push({
+          vm_id: vm.id,
+          name: vm.name,
+          vmid: vm.vmid,
+          action: 'error',
+          message: error.message
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Purge completed: ' + purgeResults.purged + ' ghost VMs marked as deleted',
+      data: purgeResults
+    });
+  } catch (error: any) {
+    logger.error('Purge ghost VMs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to purge ghost VMs',
+      error: error.message
+    });
+  }
+};
+
+// ============================================================================
+// ASSIGN/UNASSIGN VM TO PROJECT
+// ============================================================================
+
+export const assignVMToProject = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { project_id } = req.body; // Can be null to unassign
+    const { role, company_id } = req.user!;
+
+    // Fetch VM
+    const vm = await prisma.virtual_machines.findFirst({
+      where: { id: Number(id), ...(role !== 'super_admin' && company_id !== null ? { company_id } : {}) },
+    });
+
+    if (!vm) {
+      res.status(404).json({ success: false, message: 'VM not found' });
+      return;
+    }
+
+    // If assigning to a project, validate project exists and belongs to same company
+    if (project_id) {
+      const project = await prisma.vm_projects.findFirst({
+        where: { id: Number(project_id) },
+      });
+
+      if (!project) {
+        res.status(404).json({ success: false, message: 'Project not found' });
+        return;
+      }
+
+      if (project.company_id !== vm.company_id) {
+        res.status(403).json({ success: false, message: 'Project belongs to a different company' });
+        return;
+      }
+    }
+
+    // Update VM
+    await prisma.virtual_machines.update({
+      where: { id: Number(id) },
+      data: { project_id: project_id ? Number(project_id) : null },
+    });
+
+    logger.info(`VM ${vm.name} (ID: ${vm.id}) ${project_id ? 'assigned to' : 'unassigned from'} project ${project_id || 'none'}`);
+
+    res.json({
+      success: true,
+      message: project_id ? 'VM assigned to project successfully' : 'VM unassigned from project successfully'
+    });
+  } catch (error: any) {
+    logger.error('Assign VM to project error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to assign VM to project',
+      error: error.message,
     });
   }
 };
