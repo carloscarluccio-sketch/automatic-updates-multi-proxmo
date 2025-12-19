@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
-// import { ESXiConnection, ESXiCredentials, ConnectionTestResult } from "../services/esxi/ESXiConnection";
-// import { ESXiDiscoveryService } from "../services/esxi/ESXiDiscoveryService";
-// import { ESXiImportOrchestrator } from "../services/esxi/ESXiImportOrchestrator";
+import { ESXiConnection, ESXiCredentials } from "../services/esxi/ESXiConnection";
+import { ESXiDiscoveryService } from "../services/esxi/ESXiDiscoveryService";
 import { PrismaClient } from '@prisma/client';
 import { encrypt, decrypt } from '../utils/encryption';
+import logger from '../utils/logger';
 
 const prisma = new PrismaClient();
 
@@ -57,7 +57,7 @@ export const getESXiHosts = async (req: AuthRequest, res: Response): Promise<voi
 
     res.json({ success: true, data: hostsWithMaskedPasswords });
   } catch (error) {
-    console.error('Error fetching ESXi hosts:', error);
+    logger.error('Error fetching ESXi hosts:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch ESXi hosts' });
   }
 };
@@ -105,7 +105,7 @@ export const getESXiHost = async (req: AuthRequest, res: Response): Promise<void
 
     res.json({ success: true, data: hostWithMaskedPassword });
   } catch (error) {
-    console.error('Error fetching ESXi host:', error);
+    logger.error('Error fetching ESXi host:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch ESXi host' });
   }
 };
@@ -180,7 +180,7 @@ export const createESXiHost = async (req: AuthRequest, res: Response): Promise<v
 
     res.status(201).json({ success: true, data: hostWithMaskedPassword });
   } catch (error) {
-    console.error('Error creating ESXi host:', error);
+    logger.error('Error creating ESXi host:', error);
     res.status(500).json({ success: false, message: 'Failed to create ESXi host' });
   }
 };
@@ -254,7 +254,7 @@ export const updateESXiHost = async (req: AuthRequest, res: Response): Promise<v
 
     res.json({ success: true, data: hostWithMaskedPassword });
   } catch (error) {
-    console.error('Error updating ESXi host:', error);
+    logger.error('Error updating ESXi host:', error);
     res.status(500).json({ success: false, message: 'Failed to update ESXi host' });
   }
 };
@@ -292,12 +292,12 @@ export const deleteESXiHost = async (req: AuthRequest, res: Response): Promise<v
 
     res.json({ success: true, message: 'ESXi host deleted successfully' });
   } catch (error) {
-    console.error('Error deleting ESXi host:', error);
+    logger.error('Error deleting ESXi host:', error);
     res.status(500).json({ success: false, message: 'Failed to delete ESXi host' });
   }
 };
 
-// Test ESXi connection
+// Test ESXi connection - REAL IMPLEMENTATION
 export const testESXiConnection = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -318,41 +318,69 @@ export const testESXiConnection = async (req: AuthRequest, res: Response): Promi
       return;
     }
 
-    // NOTE: This is a placeholder for actual ESXi API connection test
-    // In production, you would use vmware-vsphere library to test connection
-    // For now, we'll simulate a test
-
     try {
-      // Decrypt password for connection test (will be used in actual implementation)
-      // @ts-ignore - password will be used when VMware vSphere library is integrated
-      const _password = decrypt(host.password_encrypted);
+      // Decrypt password for connection test
+      const password = decrypt(host.password_encrypted);
 
-      // TODO: Implement actual ESXi API connection test
-      // const { Client } = require('node-vsphere');
-      // const client = new Client(host.host, host.username, password, true);
-      // await client.connect();
-      // await client.close();
+      // Create ESXi connection credentials
+      const credentials: ESXiCredentials = {
+        host: host.host,
+        port: host.port || 443,
+        username: host.username,
+        password: password,
+        ignoreSSL: true, // For testing - should be configurable in production
+      };
 
-      // Update test status
-      await prisma.esxi_hosts.update({
-        where: { id: parseInt(id) },
-        data: {
-          status: 'active',
-          last_tested: new Date(),
-          last_test_message: 'Connection successful',
-        },
-      });
+      logger.info(`Testing ESXi connection to ${host.host}...`);
 
-      res.json({
-        success: true,
-        message: 'Connection test successful (simulated)',
-        data: {
-          status: 'active',
-          tested_at: new Date(),
-        },
-      });
+      // Create connection and test
+      const esxiConnection = new ESXiConnection(credentials);
+      const testResult = await esxiConnection.testConnection();
+
+      if (testResult.success) {
+        // Update test status as success
+        await prisma.esxi_hosts.update({
+          where: { id: parseInt(id) },
+          data: {
+            status: 'active',
+            last_tested: new Date(),
+            last_test_message: testResult.message || 'Connection successful',
+          },
+        });
+
+        logger.info(`ESXi connection successful: ${host.host}`);
+
+        res.json({
+          success: true,
+          message: testResult.message,
+          data: {
+            status: 'active',
+            version: testResult.version,
+            apiVersion: testResult.apiVersion,
+            build: testResult.build,
+            tested_at: new Date(),
+          },
+        });
+      } else {
+        // Update test status as failed
+        await prisma.esxi_hosts.update({
+          where: { id: parseInt(id) },
+          data: {
+            status: 'error',
+            last_tested: new Date(),
+            last_test_message: testResult.message || 'Connection failed',
+          },
+        });
+
+        logger.error(`ESXi connection failed: ${host.host} - ${testResult.message}`);
+
+        res.status(500).json({
+          success: false,
+          message: testResult.message || 'Connection test failed',
+        });
+      }
     } catch (error: any) {
-      // Update test status
+      // Update test status as error
       await prisma.esxi_hosts.update({
         where: { id: parseInt(id) },
         data: {
@@ -362,19 +390,21 @@ export const testESXiConnection = async (req: AuthRequest, res: Response): Promi
         },
       });
 
+      logger.error(`ESXi connection error: ${host.host}`, error);
+
       res.status(500).json({
         success: false,
-        message: 'Connection test failed',
+        message: error.message || 'Connection test failed',
         error: error.message,
       });
     }
-  } catch (error) {
-    console.error('Error testing ESXi connection:', error);
+  } catch (error: any) {
+    logger.error('Error testing ESXi connection:', error);
     res.status(500).json({ success: false, message: 'Failed to test connection' });
   }
 };
 
-// Discover VMs from ESXi host
+// Discover VMs from ESXi host - REAL IMPLEMENTATION
 export const discoverVMs = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -395,44 +425,57 @@ export const discoverVMs = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    // Decrypt password for API call (will be used in actual implementation)
-    // @ts-ignore - password will be used when VMware vSphere library is integrated
-    const _password = decrypt(host.password_encrypted);
+    try {
+      // Decrypt password for API call
+      const password = decrypt(host.password_encrypted);
 
-    // NOTE: This is a placeholder for actual ESXi VM discovery
-    // In production, you would use vmware-vsphere library
-    // For now, we'll create some sample discovered VMs
+      // Create ESXi connection credentials
+      const credentials: ESXiCredentials = {
+        host: host.host,
+        port: host.port || 443,
+        username: host.username,
+        password: password,
+        ignoreSSL: true,
+      };
 
-    // Delete old discovered VMs for this host
-    await prisma.esxi_discovered_vms.deleteMany({
-      where: { esxi_host_id: parseInt(id) },
-    });
+      logger.info(`Discovering VMs on ESXi host ${host.host}...`);
 
-    // TODO: Implement actual ESXi API discovery
-    // const { Client } = require('node-vsphere');
-    // const client = new Client(host.host, host.username, password, true);
-    // await client.connect();
-    // const vms = await client.getVirtualMachines();
-    // await client.close();
+      // Create connection and discovery service
+      const esxiConnection = new ESXiConnection(credentials);
+      const discoveryService = new ESXiDiscoveryService(esxiConnection, parseInt(id));
 
-    // For now, return empty discovery result
-    const discoveredVMs = await prisma.esxi_discovered_vms.findMany({
-      where: { esxi_host_id: parseInt(id) },
-      orderBy: { vm_name: 'asc' },
-    });
+      // Perform VM discovery
+      const discoveredVMs = await discoveryService.discoverVMs();
 
-    res.json({
-      success: true,
-      message: 'VM discovery completed',
-      data: {
-        host_id: parseInt(id),
-        host_name: host.name,
-        discovered_count: discoveredVMs.length,
-        vms: discoveredVMs,
-      },
-    });
-  } catch (error) {
-    console.error('Error discovering VMs:', error);
+      logger.info(`Discovered ${discoveredVMs.length} VMs on ${host.host}`);
+
+      // Get the saved VMs from database
+      const savedVMs = await prisma.esxi_discovered_vms.findMany({
+        where: { esxi_host_id: parseInt(id) },
+        orderBy: { vm_name: 'asc' },
+      });
+
+      res.json({
+        success: true,
+        message: `VM discovery completed: ${discoveredVMs.length} VMs found`,
+        data: {
+          host_id: parseInt(id),
+          host_name: host.name,
+          discovered_count: savedVMs.length,
+          vms: savedVMs,
+        },
+      });
+    } catch (error: any) {
+      logger.error(`VM discovery failed on ${host.host}:`, error);
+
+      res.status(500).json({
+        success: false,
+        message: error.message || 'VM discovery failed',
+        error: error.message,
+      });
+    }
+  } catch (error: any) {
+    logger.error('Error discovering VMs:', error);
     res.status(500).json({ success: false, message: 'Failed to discover VMs' });
   }
 };
@@ -473,7 +516,7 @@ export const getDiscoveredVMs = async (req: AuthRequest, res: Response): Promise
       },
     });
   } catch (error) {
-    console.error('Error fetching discovered VMs:', error);
+    logger.error('Error fetching discovered VMs:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch discovered VMs' });
   }
 };
@@ -519,16 +562,14 @@ export const importVMsToProxmox = async (req: AuthRequest, res: Response): Promi
     }
 
     // NOTE: This is a placeholder for actual ESXi to Proxmox import
-    // In production, this would:
-    // 1. Connect to ESXi to export VM
-    // 2. Convert VMware format to qcow2
-    // 3. Upload to Proxmox storage
-    // 4. Create VM in Proxmox
-    // 5. Update database
+    // The full implementation would use ESXiImportOrchestrator
+    // For now, return a pending status
+
+    logger.info(`VM import initiated: ${vm_ids.length} VMs from ${host.host}`);
 
     res.json({
       success: true,
-      message: 'VM import initiated (feature coming soon)',
+      message: 'VM import initiated (full implementation pending)',
       data: {
         host_id: parseInt(id),
         vm_count: vm_ids.length,
@@ -539,7 +580,7 @@ export const importVMsToProxmox = async (req: AuthRequest, res: Response): Promi
       },
     });
   } catch (error) {
-    console.error('Error importing VMs:', error);
+    logger.error('Error importing VMs:', error);
     res.status(500).json({ success: false, message: 'Failed to import VMs' });
   }
 };
