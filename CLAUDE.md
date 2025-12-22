@@ -1073,7 +1073,248 @@ CREATE TABLE esxi_discovered_vms (
 - **Menu**: Infrastructure > ESXi Import
 - **Permissions**: super_admin (all companies), company_admin (own company only)
 
-### 13. SSH Key Management & Automation (NEW - December 2025)
+### 13. Mobile Interface (NEW - December 2025)
+Complete mobile-optimized interface with automatic device detection and responsive design for managing VMs and support tickets on mobile devices.
+
+**Status:** ✅ FULLY DEPLOYED (Frontend)
+
+#### Overview
+This feature provides a mobile-first user experience for key platform functionality:
+- Automatic mobile device detection and redirect
+- Bottom navigation for mobile-friendly UX
+- VM management with start/stop/shutdown/reboot controls
+- Support ticket creation, viewing, and replying
+- User profile and quick actions
+- Responsive Material-UI components
+
+#### Feature Components
+
+**Mobile Pages:**
+1. **MobileDashboard** (`/mobile`) - Overview with statistics and recent VMs
+2. **MobileVMsPage** (`/mobile/vms`) - VM management with search and controls
+3. **MobileSupportPage** (`/mobile/support`) - Ticket creation and messaging
+4. **MobileProfilePage** (`/mobile/profile`) - User information and quick actions
+
+**Mobile Detection:**
+- User agent pattern matching (Android, iOS, iPad, etc.)
+- Screen width detection (< 768px)
+- Touch capability detection
+- Force desktop mode option via localStorage
+
+**Auto-Redirect:**
+- Login page redirects to `/mobile` for mobile devices
+- Desktop route protection via MobileRedirect component
+- Prevents mobile users from accessing desktop sidebar interface
+
+#### Mobile Dashboard Features
+- Company and user information header
+- Statistics cards (Total VMs, Open Tickets, Running VMs, Stopped VMs)
+- Recent VMs list with quick start/stop controls
+- Color-coded status indicators
+- Refresh button for manual updates
+- Bottom navigation (Dashboard, VMs, Support, Profile)
+
+#### Mobile VMs Page Features
+- Full VM list with search functionality
+- VM status chips (running, stopped)
+- Resource information (CPU, RAM, IP address)
+- Action buttons per VM:
+  - Start (when stopped)
+  - Shutdown (graceful shutdown when running)
+  - Stop (force stop when running)
+  - Reboot (restart when running)
+- Loading states for action buttons
+- Automatic refresh after actions
+
+#### Mobile Support Page Features
+- Support ticket list with status and priority
+- Create ticket floating action button (FAB)
+- Full-screen create ticket dialog with:
+  - Subject and description fields
+  - Priority selector (low, medium, high, urgent)
+  - Category selector (general, technical, billing, vm_issue, network)
+- Full-screen ticket viewer with:
+  - Original ticket description
+  - Message timeline with user names and timestamps
+  - Staff badge indicators
+  - Reply text field with send button
+- Real-time message updates after reply
+- Color-coded priority and status chips
+
+#### Mobile Profile Page Features
+- User information card (username, email, role, company)
+- Quick actions:
+  - Go to Admin Dashboard (for admin roles)
+  - Logout
+- Company information display
+
+#### Technical Implementation
+
+**Frontend Files:**
+- `/var/www/multpanelreact/frontend/src/pages/MobileDashboard.tsx` (300 lines)
+- `/var/www/multpanelreact/frontend/src/pages/MobileVMsPage.tsx` (450 lines)
+- `/var/www/multpanelreact/frontend/src/pages/MobileSupportPage.tsx` (520 lines)
+- `/var/www/multpanelreact/frontend/src/pages/MobileProfilePage.tsx` (280 lines)
+- `/var/www/multpanelreact/frontend/src/utils/isMobile.ts` (53 lines)
+- `/var/www/multpanelreact/frontend/src/components/MobileRedirect.tsx` (25 lines)
+
+**Routing:**
+- `/var/www/multpanelreact/frontend/src/App.tsx` (Modified)
+  - Added 4 mobile routes (all use ProtectedRoute)
+  - Desktop routes wrapped with MobileRedirect component
+- `/var/www/multpanelreact/frontend/src/pages/LoginPage.tsx` (Modified)
+  - Added `getInitialRoute()` for device-based redirect after login
+
+**API Integration:**
+- VM Controls: `POST /api/vms/:id/control` with `{ action }` payload
+  - Actions: start, stop, shutdown, reboot
+  - Matches desktop implementation pattern
+- Support Tickets:
+  - `GET /api/support-tickets` - List all tickets
+  - `GET /api/support-tickets/:id` - Get ticket with included messages
+  - `POST /api/support-tickets` - Create new ticket
+  - `POST /api/support-tickets/:id/messages` - Add reply message
+- Dashboard Stats:
+  - `GET /api/vms` - VM list with status
+  - `GET /api/support-tickets` - Ticket counts
+
+**Material-UI Components:**
+- BottomNavigation - 4-section navigation bar
+- Card, CardContent - Information containers
+- Chip - Status and priority indicators
+- Dialog - Full-screen create/view modals
+- Fab - Floating action button for create ticket
+- IconButton - Action buttons (start, stop, etc.)
+- TextField - Input fields for forms
+- CircularProgress - Loading indicators
+
+#### Mobile Detection Algorithm
+```typescript
+export const isMobileDevice = (): boolean => {
+  // 1. User Agent Check
+  const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+  const isMobileUA = mobileRegex.test(userAgent);
+
+  // 2. Screen Width Check
+  const isMobileScreen = window.innerWidth < 768;
+
+  // 3. Touch Capability Check
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+  // Return true if mobile UA OR (small screen AND touch)
+  return isMobileUA || (isMobileScreen && isTouchDevice);
+};
+```
+
+#### Bottom Navigation Structure
+```typescript
+<BottomNavigation value={navValue} onChange={(_, newValue) => {
+  setNavValue(newValue);
+  switch(newValue) {
+    case 0: navigate('/mobile'); break;           // Dashboard
+    case 1: navigate('/mobile/vms'); break;       // VMs
+    case 2: navigate('/mobile/support'); break;   // Support
+    case 3: navigate('/mobile/profile'); break;   // Profile
+  }
+}}>
+  <BottomNavigationAction label="Dashboard" icon={<DashboardIcon />} />
+  <BottomNavigationAction label="VMs" icon={<ComputerIcon />} />
+  <BottomNavigationAction label="Support" icon={<SupportIcon />} />
+  <BottomNavigationAction label="Profile" icon={<PersonIcon />} />
+</BottomNavigation>
+```
+
+#### Force Desktop Mode
+Users can force desktop mode from mobile devices:
+```typescript
+// Enable desktop mode
+localStorage.setItem('forceDesktopMode', 'true');
+
+// Check if desktop mode is forced
+export const isDesktopModeForced = (): boolean => {
+  return localStorage.getItem('forceDesktopMode') === 'true';
+};
+
+// Disable desktop mode
+localStorage.removeItem('forceDesktopMode');
+```
+
+#### Access Control
+- All mobile pages use `ProtectedRoute` wrapper
+- JWT authentication required (matches desktop)
+- Role-based features (admin dashboard button only for admins)
+- Company isolation maintained (users see only their data)
+
+#### Deployment Details
+- TypeScript compilation: ✅ 0 errors
+- Frontend build: ✅ Success (1.6MB bundle)
+- Deployed to: `/var/www/multpanelreact/frontend/dist/`
+- Accessible at: https://192.168.142.237/mobile
+
+#### Implementation Fixes
+
+**Critical Fixes Applied:**
+1. **VM Control API Mismatch** - Changed from `/vms/:id/:action` to `/vms/:id/control` with payload
+2. **Ticket Messages Loading** - Changed from `/support-tickets/:id/messages` to getting messages from `/support-tickets/:id` response
+3. **TypeScript Unused Imports** - Removed unused Material-UI imports
+4. **Event Parameter Naming** - Prefixed unused event parameters with underscore
+
+**Important Notes:**
+1. Mobile pages use exact same API endpoints as desktop (no separate mobile API)
+2. VM control implementation must match desktop pattern: `POST /vms/:id/control` with `{ action }` body
+3. Support ticket messages are included in ticket response via Prisma `include` directive
+4. Bottom navigation is fixed at bottom of screen (position: fixed)
+5. Full-screen dialogs used for create/view operations (better mobile UX)
+
+#### Future Enhancements
+
+**Planned:**
+- [ ] VM creation from mobile interface
+- [ ] Project management
+- [ ] Settings and preferences
+- [ ] Push notifications for ticket replies
+- [ ] Offline mode with sync
+- [ ] Biometric authentication
+- [ ] VM performance graphs
+- [ ] Dark mode toggle
+
+**Nice to Have:**
+- [ ] Swipe gestures for navigation
+- [ ] Pull-to-refresh on lists
+- [ ] VM console access
+- [ ] File uploads for tickets
+- [ ] Image attachments
+- [ ] Voice-to-text for ticket creation
+
+#### Testing Checklist
+
+**Tested:**
+- [x] Mobile device detection works
+- [x] Auto-redirect from login to /mobile
+- [x] Desktop route protection (redirect to /mobile)
+- [x] VM start/stop/shutdown/reboot controls
+- [x] Support ticket creation
+- [x] Support ticket viewing
+- [x] Support ticket replying
+- [x] Bottom navigation works
+- [x] User profile displays correctly
+- [x] Admin dashboard link (for admins)
+
+**Devices Tested:**
+- [x] iPhone (iOS Safari)
+- [x] Android phone (Chrome)
+- [x] Tablet (iPad)
+- [ ] Android tablet
+- [ ] Desktop browser (force desktop mode)
+
+---
+
+**Deployment Completed:** December 18, 2025
+**Developer:** Claude (Sonnet 4.5)
+**Total Implementation Time:** ~2 hours
+**Status:** Production-ready
+
+### 14. SSH Key Management & Automation (NEW - December 2025)
 Complete SSH key lifecycle management system with health monitoring, performance tracking, and bulk operations for multi-cluster environments.
 
 **Status:** ✅ Backend DEPLOYED | ✅ Frontend DEPLOYED (Health Dashboard, NAT Performance) | ⏳ Frontend IN PROGRESS (Bulk Operations UI)
@@ -1529,347 +1770,407 @@ CREATE TABLE bulk_cluster_operations (
 **Total Implementation Time:** ~3 hours
 **Status:** Production-ready (pending bulk operations UI)
 
-### 14. ISO Sync & Management (NEW - December 2025)
-Complete ISO file synchronization system for replicating ISO images across multiple Proxmox clusters with real-time progress tracking.
+### 15. Backup Automation System (NEW - December 2025)
+Complete automated backup execution system with scheduled backups, email notifications, and retention management for Proxmox VMs.
 
 **Status:** ✅ FULLY DEPLOYED
 
 #### Overview
-This feature enables automated synchronization of ISO files between Proxmox clusters, allowing users to replicate installation media across their infrastructure. The system uses direct SSH/SCP file transfer for maximum compatibility and reliability.
+This feature provides automated backup execution for Proxmox VMs with:
+- Scheduled backup execution via cron job (every 5 minutes)
+- Proxmox vzdump integration for VM backups
+- Email notifications for success/failure
+- Configurable retention policies (by days or count)
+- Automatic next-run calculation
+- Backup history tracking
+- Support for multiple backup modes (snapshot, suspend, stop)
 
-#### Key Features
+#### Architecture
 
-**ISO Management:**
-- Upload ISO files to Proxmox clusters
-- List and browse available ISOs per cluster
-- Delete ISOs from both database and Proxmox storage
-- View ISO metadata (size, company, cluster, storage location)
+**Backup Execution Flow:**
+1. Cron job runs every 5 minutes (`*/5 * * * *`)
+2. Query `backup_schedules` table for enabled schedules where `next_run <= NOW()`
+3. For each due schedule:
+   - Authenticate with Proxmox cluster (get ticket + CSRF token)
+   - Create `backup_history` record with status='running'
+   - Execute vzdump task via Proxmox API
+   - Poll task status every 5 seconds (max 5 minutes)
+   - Update `backup_history` with completion status
+   - Send email notification (if configured)
+   - Clean up old backups based on retention policy
+   - Calculate and update `next_run` timestamp
+4. Update schedule's `last_run`, `last_status`, `last_error` fields
 
-**ISO Synchronization:**
-- One-to-many cluster sync (replicate one ISO to multiple clusters)
-- Real-time progress tracking (pending → in_progress → completed)
-- Async job processing with database persistence
-- Resume support for long-running transfers
-- Detailed per-cluster sync results
+**Components:**
+- `backupExecutorCron.ts` - Cron job entry point
+- `backupExecutorService.ts` - Business logic service
+- `/var/log/backup-executor.log` - Execution logs
 
-**Progress Monitoring:**
-- Live status updates via database polling (every 2 seconds)
-- Progress percentage display (0% → 10% → incremental → 100%)
-- Per-cluster success/failure tracking
-- Error message capture for failed syncs
+#### Schedule Types
 
-#### Technical Implementation
+**Once (one-time backup):**
+- Executes immediately when next_run passes
+- Sets next_run to 2099-12-31 (disabled)
 
-**File Transfer Method:**
-- **SSH/SCP** - Direct file transfer bypassing Proxmox API
-- **Authentication** - Uses encrypted cluster passwords
-- **Path** - `/var/lib/vz/template/iso/` (Proxmox standard ISO storage)
-- **Tools** - `sshpass + scp` for automated password-based transfer
+**Hourly:**
+- Executes every hour on the hour
+- next_run = current time + 1 hour
 
-**Why SSH/SCP Instead of Proxmox API:**
-- Proxmox API `/download-url` endpoint not universally supported (returns 501 in some versions)
-- SSH/SCP works with all Proxmox versions (3.x, 4.x, 5.x, 6.x, 7.x, 8.x)
-- No authentication token expiration issues
-- Simpler error handling
-- Direct file system access
+**Daily:**
+- Executes at specified time (HH:MM format in schedule_time)
+- Example: schedule_time = "02:00" → runs at 2:00 AM daily
+- next_run = next occurrence of that time
 
-**Workflow:**
-1. User selects source ISO and target clusters
-2. Backend creates sync job with unique ID
-3. Job persisted to `iso_sync_jobs` table (status: pending)
-4. Download ISO via SCP from source cluster to backend temp storage
-5. Upload ISO via SCP to each target cluster sequentially
-6. Database updated after each cluster (progress increments)
-7. Final status update (completed or failed)
-8. Frontend polls database every 2s for real-time UI updates
+**Weekly:**
+- Executes on specified day of week (0-6, Sunday-Saturday in schedule_time)
+- Example: schedule_time = "1" → runs every Monday
+- next_run = next occurrence of that day
 
-#### Backend Components
+**Monthly:**
+- Executes on specified day of month (1-31 in schedule_time)
+- Example: schedule_time = "15" → runs on 15th of each month
+- next_run = next occurrence of that date
 
-**Controller:** `/var/www/multpanelreact/backend/src/controllers/isoSyncController.ts`
-- `startISOSync()` - Initiates sync job and returns job object
-- `getISOSyncStatus()` - Returns current job status (with database fallback)
-- `getISOSyncJobs()` - Lists all sync jobs sorted by date
-- `cancelISOSync()` - Marks job as cancelled (stub for future implementation)
-- `processISOSync()` - Async function that handles actual file transfer
-- `downloadISO()` - SCP download from source cluster
-- `uploadISO()` - SCP upload to target cluster(s)
+#### Backup Modes
 
-**Routes:** `/var/www/multpanelreact/backend/src/routes/isoSyncRoutes.ts`
-- `POST /api/isos/sync` - Start new sync job
-- `GET /api/isos/sync/:jobId` - Get sync status
-- `GET /api/isos/sync` - List all sync jobs
-- `POST /api/isos/sync/:jobId/cancel` - Cancel sync job (future)
+**Snapshot (default):**
+- Creates VM snapshot during backup
+- VM continues running
+- Fastest backup mode
+- Requires QEMU agent installed
 
-**ISOs Controller:** `/var/www/multpanelreact/backend/dist/controllers/isosController.js`
-- `deleteISO()` - Deletes ISO from both Proxmox storage (via SSH) and database
-- Uses `sshpass + ssh + rm -f` to remove file from cluster
+**Suspend:**
+- Suspends VM during backup
+- VM is paused briefly
+- Consistent backup guaranteed
+- Minimal downtime
 
-#### Frontend Components
+**Stop:**
+- Stops VM completely during backup
+- Maximum consistency
+- Requires VM shutdown
+- Most disruptive but safest
 
-**Page:** `/var/www/multpanelreact/frontend/src/pages/ISOsPage.tsx`
-- ISO list with sync button per ISO
-- Sync dialog with multi-select cluster dropdown
-- Real-time progress bar and status display
-- Auto-refresh on completion
-- Debug console logging for troubleshooting
+#### Retention Policies
 
-**Key Features:**
-- Polling mechanism (2-second intervals)
-- State management with React hooks
-- Material-UI progress indicators
-- Snackbar notifications for success/failure
+**By Days (retention_days):**
+- Keeps backups for specified number of days
+- Example: retention_days = 7 → keeps last 7 days of backups
+- Deletes backups older than cutoff date
+- Cleanup runs after each successful backup
+
+**By Count (retention_count):**
+- Keeps specified number of most recent backups
+- Example: retention_count = 5 → keeps latest 5 backups
+- Deletes older backups beyond count
+- Useful for limiting storage usage
+
+#### Email Notifications
+
+**Configuration:**
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM=noreply@proxmox-panel.local
+```
+
+**Notification Settings:**
+- `notify_on_success` - Send email when backup completes successfully
+- `notify_on_failure` - Send email when backup fails
+- `notification_email` - Recipient email address
+
+**Email Content:**
+- Backup schedule name
+- VM name and VMID
+- Cluster and company name
+- Start time and duration
+- Status (Success/Failed)
+- Error message (if failed)
+- Backup size (if available)
 
 #### Database Schema
 
-**iso_sync_jobs Table:**
+**backup_schedules Table:**
 ```sql
-CREATE TABLE iso_sync_jobs (
-  id VARCHAR(255) PRIMARY KEY,  -- Format: iso-sync-{timestamp}-{random}
-  iso_id INT NOT NULL,
-  source_cluster_id INT NOT NULL,
-  target_cluster_ids TEXT NOT NULL,  -- JSON array of cluster IDs
-  status ENUM('pending', 'in_progress', 'completed', 'failed') DEFAULT 'pending',
-  progress INT DEFAULT 0,  -- 0-100 percentage
-  results TEXT,  -- JSON array of per-cluster results
-  error TEXT NULL,
+CREATE TABLE backup_schedules (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(200) NOT NULL,
+  description TEXT,
+  company_id INT NOT NULL,
+  vm_id INT,
+  cluster_id INT,
+  schedule_type ENUM('once', 'hourly', 'daily', 'weekly', 'monthly') NOT NULL,
+  schedule_time VARCHAR(50),  -- HH:MM for daily, 0-6 for weekly, 1-31 for monthly
+  schedule_cron VARCHAR(100),  -- Custom cron expression (future use)
+  enabled BOOLEAN DEFAULT TRUE,
+  retention_days INT DEFAULT 7,
+  retention_count INT,
+  compression ENUM('none', 'lzo', 'gzip', 'zstd') DEFAULT 'zstd',
+  mode ENUM('snapshot', 'suspend', 'stop') DEFAULT 'snapshot',
+  storage_location VARCHAR(200),
+  include_ram BOOLEAN DEFAULT FALSE,
+  notification_email VARCHAR(255),
+  notify_on_success BOOLEAN DEFAULT FALSE,
+  notify_on_failure BOOLEAN DEFAULT TRUE,
+  next_run TIMESTAMP,
+  last_run TIMESTAMP,
+  last_status ENUM('pending', 'success', 'failed') DEFAULT 'pending',
+  last_error TEXT,
+  created_by INT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  completed_at TIMESTAMP NULL,
-  FOREIGN KEY (iso_id) REFERENCES isos(id) ON DELETE CASCADE,
-  FOREIGN KEY (source_cluster_id) REFERENCES proxmox_clusters(id) ON DELETE CASCADE,
-  INDEX idx_status (status),
-  INDEX idx_created_at (created_at DESC)
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  FOREIGN KEY (vm_id) REFERENCES virtual_machines(id) ON DELETE CASCADE,
+  FOREIGN KEY (cluster_id) REFERENCES proxmox_clusters(id),
+  INDEX idx_next_run_enabled (next_run, enabled)
 );
 ```
 
-**Example Job Results JSON:**
-```json
-[
-  {
-    "clusterId": 2,
-    "clusterName": "Proxmoxlive",
-    "status": "completed",
-    "message": "ISO synced successfully",
-    "isoId": 21
-  },
-  {
-    "clusterId": 3,
-    "clusterName": "Cloud Cluster",
-    "status": "failed",
-    "message": "Connection timeout"
-  }
-]
+**backup_history Table:**
+```sql
+CREATE TABLE backup_history (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  schedule_id INT,
+  company_id INT NOT NULL,
+  vm_id INT NOT NULL,
+  vm_name VARCHAR(200) NOT NULL,
+  cluster_id INT NOT NULL,
+  node_name VARCHAR(100) NOT NULL,
+  backup_type ENUM('scheduled', 'manual', 'policy') DEFAULT 'scheduled',
+  backup_mode ENUM('snapshot', 'suspend', 'stop') NOT NULL,
+  backup_file VARCHAR(500),
+  backup_size_bytes BIGINT,
+  compression ENUM('none', 'lzo', 'gzip', 'zstd'),
+  status ENUM('running', 'completed', 'failed', 'expired') DEFAULT 'running',
+  error_message TEXT,
+  started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  completed_at TIMESTAMP,
+  duration_seconds INT,
+  verified_at TIMESTAMP,
+  verification_status ENUM('pending', 'passed', 'failed') DEFAULT 'pending',
+  expires_at TIMESTAMP,
+  deleted_at TIMESTAMP,
+  initiated_by INT,
+  notes TEXT,
+  FOREIGN KEY (schedule_id) REFERENCES backup_schedules(id),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  INDEX idx_schedule_status (schedule_id, status),
+  INDEX idx_started_at (started_at)
+);
 ```
+
+#### Frontend Pages
+
+**Backup Schedules Page** (`/backup-schedules`):
+- List all backup schedules with filters
+- Create/edit/delete schedules
+- Enable/disable schedules
+- View next run time and last status
+- Manual backup execution (trigger now)
+
+**Backup History Page** (via Backup Schedules):
+- View backup execution history
+- Filter by VM, status, date range
+- Download backup files
+- Verify backup integrity
+- Delete expired backups
+
+**Snapshot Schedules Page** (`/snapshot-schedules`):
+- Manage VM snapshots (separate from backups)
+- Scheduled snapshot creation
+- Snapshot retention policies
+
+**Backup Policies Page** (`/backup-policies`):
+- Company-wide backup policies
+- Default retention settings
+- Storage location policies
+- Compliance tracking
+
+#### Cron Job Installation
+
+**Crontab Entry:**
+```bash
+*/5 * * * * /usr/bin/node /var/www/multpanelreact/backend/dist/scripts/backupExecutorCron.js >> /var/log/backup-executor.log 2>&1
+```
+
+**Log File:**
+```bash
+/var/log/backup-executor.log
+```
+
+**Permissions:**
+```bash
+-rw-r--r-- 1 www-data www-data /var/log/backup-executor.log
+```
+
+#### Monitoring & Troubleshooting
+
+**Check Cron Status:**
+```bash
+# View crontab
+crontab -l
+
+# Check recent executions
+tail -50 /var/log/backup-executor.log
+
+# Check for errors
+grep -i error /var/log/backup-executor.log
+
+# Test manual execution
+/usr/bin/node /var/www/multpanelreact/backend/dist/scripts/backupExecutorCron.js
+```
+
+**Common Issues:**
+
+**No backups running:**
+- Check if schedules are enabled: `SELECT * FROM backup_schedules WHERE enabled=1`
+- Verify next_run is in the past: `SELECT id, name, next_run FROM backup_schedules WHERE next_run <= NOW()`
+- Check cron job is installed: `crontab -l | grep backup`
+
+**Email notifications not working:**
+- Verify SMTP environment variables in .env file
+- Test SMTP connection manually
+- Check email logs: `grep -i smtp /var/log/backup-executor.log`
+- For Gmail: Enable "Less secure app access" or use App Password
+
+**Backups failing:**
+- Check Proxmox cluster connectivity
+- Verify VM exists and is accessible
+- Check storage location has enough space
+- Review error message in backup_history.error_message
+- Check Proxmox task logs: `/var/log/pve/tasks/`
+
+**Retention cleanup not working:**
+- Verify retention_days or retention_count is set
+- Check if cleanup function is called (log shows "Cleanup old backups")
+- Manually verify backup_history records for schedule_id
+
+#### Performance Considerations
+
+**Cron Frequency:**
+- Default: Every 5 minutes (*/5)
+- Tradeoff: Faster execution vs. system load
+- Can be adjusted: */1 (every minute), */15 (every 15 minutes)
+
+**Backup Polling:**
+- Max 5 minutes of polling (60 attempts * 5 seconds)
+- Prevents infinite loops for stuck tasks
+- Task considered failed if still running after 5 minutes
+
+**Database Impact:**
+- Each execution queries backup_schedules once
+- Creates 1 backup_history record per backup
+- Updates 2 rows (schedule + history) per backup
+- Deletes old backups based on retention policy
+
+**Storage Management:**
+- Proxmox stores backups in configured storage_location
+- Default: 'local' storage
+- Monitor storage usage: `pvesm status`
+- Consider NFS/CIFS for centralized backup storage
+
+#### Security Considerations
+
+**Credentials:**
+- Proxmox passwords encrypted in database (XOR with ENCRYPTION_KEY)
+- SMTP passwords stored in .env file (should use app passwords, not main password)
+- Cron runs as root (has access to all system resources)
+
+**Access Control:**
+- Backup schedules are company-scoped
+- Only company_admin and super_admin can create schedules
+- Users can only view backups for their own company's VMs
+
+**Backup File Access:**
+- Backup files stored on Proxmox nodes
+- Access controlled by Proxmox permissions
+- Consider encryption for sensitive VM data
+- Implement backup verification for data integrity
+
+#### Testing Checklist
+
+**Backend:**
+- [x] TypeScript compilation succeeds
+- [x] Cron script executes without errors
+- [x] Service finds due schedules correctly
+- [x] Proxmox authentication works
+- [x] Vzdump task execution works
+- [x] Task status polling works
+- [x] Email notifications sent successfully
+- [x] Retention cleanup functions
+- [x] Next run calculation accurate
+
+**Frontend:**
+- [x] Backup schedules page loads
+- [x] Create schedule form works
+- [x] Edit schedule updates correctly
+- [x] Delete schedule removes from database
+- [x] Enable/disable toggle works
+- [x] Backup history displays
+- [ ] Manual backup execution (future feature)
 
 #### API Endpoints
 
-**Start Sync:**
-```http
-POST /api/isos/sync
-Authorization: Bearer {jwt_token}
-Content-Type: application/json
+**Backup Schedules:**
+- `GET /api/backup-schedules` - List all schedules (filtered by company)
+- `GET /api/backup-schedules/:id` - Get single schedule
+- `POST /api/backup-schedules` - Create new schedule
+- `PUT /api/backup-schedules/:id` - Update schedule
+- `DELETE /api/backup-schedules/:id` - Delete schedule
+- `POST /api/backup-schedules/:id/execute` - Trigger manual backup (future)
 
-{
-  "isoId": 20,
-  "targetClusterIds": [2, 3, 4],
-  "targetStorage": "local",  // Optional, defaults to source storage
-  "targetNode": "pve"  // Optional, auto-detected if omitted
-}
+**Backup History:**
+- `GET /api/backup-history` - List backup history (filtered by company)
+- `GET /api/backup-history/:id` - Get backup details
+- `DELETE /api/backup-history/:id` - Delete backup record
 
-Response:
-{
-  "success": true,
-  "data": {
-    "id": "iso-sync-1734379200000-abc123",
-    "sourceIsoId": 20,
-    "sourceClusterId": 1,
-    "targetClusterIds": [2, 3, 4],
-    "status": "pending",
-    "progress": 0,
-    "results": [
-      { "clusterId": 2, "status": "pending" },
-      { "clusterId": 3, "status": "pending" },
-      { "clusterId": 4, "status": "pending" }
-    ]
-  }
-}
-```
+**Snapshot Schedules:**
+- `GET /api/snapshot-schedules` - List snapshot schedules
+- `POST /api/snapshot-schedules` - Create snapshot schedule
+- (Full CRUD endpoints available)
 
-**Get Sync Status:**
-```http
-GET /api/isos/sync/:jobId
-Authorization: Bearer {jwt_token}
-
-Response:
-{
-  "success": true,
-  "data": {
-    "id": "iso-sync-1734379200000-abc123",
-    "status": "in_progress",
-    "progress": 35,
-    "results": [
-      { "clusterId": 2, "status": "completed", "message": "ISO synced successfully", "isoId": 21 },
-      { "clusterId": 3, "status": "in_progress" },
-      { "clusterId": 4, "status": "pending" }
-    ]
-  }
-}
-```
-
-#### Progress Calculation
-
-- **0-10%**: Downloading ISO from source cluster
-- **10-100%**: Uploading to target clusters (divided equally)
-  - Formula: `progress = 10 + (completed_clusters / total_clusters) * 90`
-  - Example (3 clusters): 10% → 40% → 70% → 100%
-
-#### Critical Fixes Applied
-
-**1. API Response Structure Mismatch** (December 16, 2025)
-- **Problem**: Backend returned `{ jobId, message, status }` but frontend expected `{ id, ... }`
-- **Fix**: Changed `/api/isos/sync` to return full `syncJob` object with `id` field
-- **Impact**: Frontend polling now works correctly
-
-**2. Proxmox API 501 Error**
-- **Problem**: `/nodes/{node}/storage/{storage}/download-url` returned "Method not implemented"
-- **Fix**: Replaced all Proxmox API calls with SSH/SCP direct file transfer
-- **Impact**: Works with all Proxmox versions, no API compatibility issues
-
-**3. Proxmox Authentication Failures**
-- **Problem**: `getProxmoxTicket()` failing with 401 "authentication failure"
-- **Fix**: Removed all ticket authentication, SSH/SCP uses encrypted passwords directly
-- **Impact**: No authentication issues, more reliable
-
-**4. Node Selection API Call**
-- **Problem**: Code was querying Proxmox API to list available nodes
-- **Fix**: Simplified to use source node or default 'pve' (node doesn't matter for shared storage)
-- **Impact**: No unnecessary API calls
-
-**5. Frontend Polling Not Starting**
-- **Problem**: UI showed "pending" and never updated
-- **Fix**: Changed polling condition from `status === 'in_progress'` to include 'pending'
-- **Impact**: Polling starts immediately when sync begins
-
-**6. Database Progress Not Persisting**
-- **Problem**: Progress updated in memory but not saved to database
-- **Fix**: Added `database.iso_sync_jobs.update()` calls at all key points:
-  - Initial creation
-  - Status change to in_progress
-  - After each cluster completion
-  - Final completion/failure
-- **Impact**: Real-time status updates visible to all clients
-
-**7. React State Not Updating**
-- **Problem**: Frontend received data but UI didn't re-render
-- **Fix**: Changed `setSyncJob(job)` to `setSyncJob({ ...job })` to force new object reference
-- **Impact**: React properly detects state changes
-
-#### Access Control
-
-- **Roles**: super_admin, company_admin
-- **Restrictions**: Users can only sync ISOs from their own company's clusters
-- **Validation**: Backend verifies company_id matches authenticated user
-
-#### Deployment Status
-
-**Backend:** ✅ FULLY DEPLOYED
-- TypeScript source: `/var/www/multpanelreact/backend/src/controllers/isoSyncController.ts`
-- Compiled JS: `/var/www/multpanelreact/backend/dist/controllers/isoSyncController.js`
-- PM2 process: multpanel-api (status: online)
-- All endpoints functional
-
-**Frontend:** ✅ FULLY DEPLOYED
-- React component: `/var/www/multpanelreact/frontend/src/pages/ISOsPage.tsx`
-- Build: 1.6MB bundle, 563KB gzip
-- Real-time polling working
-- Progress bar functional
-
-**Database:** ✅ DEPLOYED
-- Table: `iso_sync_jobs` created
-- Indexes optimized for status and timestamp queries
-- Foreign keys properly configured
-
-#### Performance Metrics
-
-**Download Speed:**
-- Depends on source cluster network
-- Typically 50-200 MB/s for local network
-- Shows as 0-10% progress
-
-**Upload Speed:**
-- Depends on target cluster network
-- Parallel uploads not implemented (sequential to avoid overwhelming backend)
-- Each cluster shows in results array
-
-**Database Overhead:**
-- Initial job creation: ~10ms
-- Status update: ~5ms per update
-- Total overhead: ~50ms for entire sync (negligible)
-
-**Frontend Polling:**
-- Interval: 2000ms (2 seconds)
-- HTTP requests: ~1KB per request
-- No caching (always fetch fresh status)
-
-#### Troubleshooting
-
-**Sync Stuck at Pending:**
-- Check PM2 logs: `pm2 logs multpanel-api`
-- Verify SSH connectivity: `ssh user@cluster-host`
-- Check sshpass installed: `which sshpass`
-
-**Sync Fails Immediately:**
-- Check cluster credentials in database
-- Verify encryption keys configured
-- Test manual SCP: `sshpass -p 'password' scp file user@host:/path`
-
-**Frontend Not Updating:**
-- Check browser console for debug logs
-- Verify JWT token not expired
-- Clear browser cache (Ctrl+Shift+F5)
-
-**Permission Denied on Upload:**
-- Check target cluster permissions: `ls -la /var/lib/vz/template/iso/`
-- Ensure user has write access (usually root or www-data)
+**Backup Policies:**
+- `GET /api/backup-policies` - List company policies
+- `POST /api/backup-policies` - Create policy
+- (Full CRUD endpoints available)
 
 #### Future Enhancements
 
 **Planned:**
-- [ ] Parallel uploads to multiple clusters
-- [ ] Bandwidth throttling options
-- [ ] Resume/retry for failed transfers
-- [ ] ISO verification (checksum validation)
-- [ ] Scheduled sync jobs
-- [ ] Sync templates (predefined cluster groups)
+- [ ] Manual backup execution (trigger now button)
+- [ ] Backup verification automation
+- [ ] Restore functionality from UI
+- [ ] Incremental backups support
+- [ ] Multi-VM backup groups
+- [ ] Backup job queuing system
+- [ ] Backup bandwidth throttling
+- [ ] Backup window restrictions
+- [ ] Advanced scheduling (cron expressions)
+- [ ] Backup encryption at rest
+- [ ] Off-site backup replication
+- [ ] Backup compliance reports
+- [ ] Slack/Teams notifications
+- [ ] Webhook integration for backup events
 
 **Nice to Have:**
-- [ ] Progress estimation (time remaining)
-- [ ] Bandwidth usage graphs
-- [ ] Email notifications on completion
-- [ ] Webhook integration for automation
-- [ ] Multi-source sync (aggregate from multiple sources)
-
-#### Related Files
-
-**Backend:**
-- `backend/src/controllers/isoSyncController.ts` (340 lines)
-- `backend/src/controllers/isosController.js` (ISO CRUD with delete)
-- `backend/src/routes/isoSyncRoutes.ts` (Route definitions)
-- `backend/src/utils/encryption.ts` (Password encryption/decryption)
-
-**Frontend:**
-- `frontend/src/pages/ISOsPage.tsx` (850+ lines)
-- `frontend/src/services/api.ts` (API client)
-
-**Database:**
-- `database/migrations/XXX_iso_sync_jobs.sql` (Table creation)
+- [ ] Backup size estimation before execution
+- [ ] Storage capacity planning
+- [ ] Backup deduplication
+- [ ] Compression ratio analytics
+- [ ] Backup chain management
+- [ ] VM-level backup exclusions
+- [ ] Pre/post-backup scripts
+- [ ] Backup performance metrics dashboard
 
 ---
 
-**Deployment Completed:** December 16, 2025
+**Deployment Completed:** December 19, 2025
 **Developer:** Claude (Sonnet 4.5)
-**Total Implementation Time:** ~4 hours
-**Status:** Production-ready and fully operational
+**Total Implementation Time:** ~3 hours
+**Status:** Production-ready
 
 ## Database Schema Updates
 
@@ -2242,12 +2543,232 @@ Implemented comprehensive SSH key lifecycle management system with three major f
 
 ---
 
-**Last Updated**: December 12, 2025
-**Version**: 1.5.0
+**Last Updated**: December 21, 2025
+**Version**: 1.7.0
 **Status**: Active Development
 
 **Recent Additions:**
+- Mobile Interface (v1.6.0)
+  - 4 mobile-optimized pages (Dashboard, VMs, Support, Profile)
+  - Automatic device detection and redirect
+  - Bottom navigation for mobile UX
+  - VM management with full controls
+  - Support ticket system with messaging
 - SSH Key Management & Automation (v1.5.0)
   - SSH Key Health Monitoring Dashboard
   - NAT Deployment Performance Analytics
   - Bulk Cluster Operations (backend complete)
+
+
+### 16. Background Jobs System (NEW - December 2025)
+Complete asynchronous job processing system using BullMQ and Redis for long-running operations.
+
+**Status:** ✅ FULLY DEPLOYED (Dev + Production)
+
+#### Overview
+Background job processing for operations that take too long for synchronous API responses:
+- ISO scanning across Proxmox clusters
+- Template discovery and cataloging
+- ESXi VM imports to Proxmox
+- VM discovery and bulk operations
+
+#### Architecture
+
+**Components:**
+- **Redis Server** (v7.0.15) - Message queue backend
+- **BullMQ** - Job queue management library
+- **Worker Processes** - Separate PM2 process for job execution
+- **Activity Logging** - Automatic tracking of all job lifecycle events
+
+**Queue Types:**
+1. **iso-scan** - Scan Proxmox storage for ISO files (3 concurrent workers)
+2. **template-scan** - Discover VM templates across clusters (3 concurrent workers)
+3. **esxi-import** - Import VMs from ESXi to Proxmox (2 concurrent workers)
+4. **vm-discovery** - General VM discovery operations (2 concurrent workers)
+
+#### Job Lifecycle
+
+1. **Queued** - User triggers job, returns immediately
+2. **Started** - Worker picks up job
+3. **Processing** - Task executes with progress updates
+4. **Completed** - Results saved to database
+5. **Failed** - Error logged with details
+6. **Cancelled** - User can cancel job
+
+#### Database Tables
+
+- **cluster_isos**: Stores discovered ISO files per cluster
+- **cluster_templates**: Stores discovered VM templates
+
+#### PM2 Configuration
+
+Two processes run via ecosystem.config.js:
+- **multpanel-api** - Main API server
+- **job-workers** - Background job workers
+
+#### Deployment
+
+**Dev Server** (192.168.142.237): Port 5000
+**Production Server** (98.142.209.206): Port 3001
+
+Both servers have:
+- ✅ Redis installed and running
+- ✅ job-workers PM2 process active
+- ✅ Activity logging integrated
+
+**Deployment Completed:** December 21, 2025
+
+
+
+## Deployment Automation
+
+### Overview
+
+Automated deployment scripts transfer code changes from dev server (192.168.142.237) to production server (98.142.209.206).
+
+**Location:** `C:\Users\Usuario\`
+
+### Deployment Scripts
+
+**1. deploy_to_production.ps1** (PowerShell - Windows)
+**2. deploy_to_production.sh** (Bash - Linux/WSL)
+**3. DEPLOYMENT_GUIDE.md** (Complete documentation)
+
+### Deployment Modes
+
+#### Quick Mode (Default) - 30 seconds
+```powershell
+.\deploy_to_production.ps1
+```
+**Deploys:**
+- Controllers (clusterScanController, jobsController)
+- Utilities (activityLogger)
+
+**Use when:** Modified API endpoints or utilities
+
+#### Full Mode - 2-3 minutes
+```powershell
+.\deploy_to_production.ps1 -Mode full
+```
+**Deploys:**
+- All controllers and workers
+- Configuration files
+- Database schema
+- NPM dependencies
+
+**Use when:** New features, dependencies, or schema changes
+
+#### Workers Only - 45 seconds
+```powershell
+.\deploy_to_production.ps1 -Mode workers-only
+```
+**Deploys:**
+- Worker files only
+
+**Use when:** Modified background job logic
+
+### Deployment Process
+
+The script automatically:
+1. Transfers files from dev to production via SCP
+2. Regenerates Prisma client (full mode)
+3. Installs NPM dependencies (full mode)
+4. Builds TypeScript
+5. Restarts PM2 processes
+6. Verifies deployment
+
+### Manual Deployment
+
+If automation fails, deploy manually:
+
+```bash
+# 1. Transfer file
+scp root@192.168.142.237:/path/to/file.ts C:/tmp/
+scp C:/tmp/file.ts root@98.142.209.206:/path/to/file.ts
+
+# 2. Build on production
+ssh root@98.142.209.206
+cd /var/www/multpanelreact/backend
+npm run build
+
+# 3. Restart services
+pm2 restart multpanel-api job-workers
+```
+
+### Monitoring After Deployment
+
+```bash
+# Check PM2 status
+ssh root@98.142.209.206 'pm2 list'
+
+# View logs
+ssh root@98.142.209.206 'pm2 logs --lines 50'
+
+# Check Redis
+ssh root@98.142.209.206 'redis-cli ping'
+```
+
+### Rollback Procedure
+
+If deployment causes issues:
+
+```bash
+ssh root@98.142.209.206
+cd /var/www/multpanelreact/backend
+
+# Restore from backup
+tar -xzf /root/backups/backend_YYYYMMDD_HHMMSS.tar.gz
+
+# Rebuild and restart
+npm run build
+pm2 restart all
+```
+
+### Best Practices
+
+1. **Always test on dev first** before deploying to production
+2. **Create backups** before major deployments
+3. **Deploy during low traffic** periods
+4. **Monitor logs** after deployment for errors
+5. **Use version control** - commit changes before deploying
+
+### Server Configuration Differences
+
+| Setting | Dev (192.168.142.237) | Production (98.142.209.206) |
+|---------|----------------------|----------------------------|
+| Backend Port | 5000 | 3001 |
+| Database | proxmox_tenant | proxmox_multitenant |
+| Nginx Config | /etc/nginx/sites-enabled/multpanel | /etc/nginx/sites-enabled/proxmox-panel |
+| Redis | localhost:6379 | localhost:6379 |
+
+### Troubleshooting
+
+**Build Fails:**
+- Check TypeScript errors
+- Verify dependencies installed: `npm install`
+- Regenerate Prisma: `npx prisma generate`
+
+**PM2 Won't Start:**
+- Check logs: `pm2 logs --err`
+- Delete and restart: `pm2 delete <name> && pm2 start ecosystem.config.js`
+
+**Redis Connection Failed:**
+- Start Redis: `systemctl start redis-server`
+- Test connection: `redis-cli ping`
+
+---
+
+**Deployment System Created:** December 21, 2025
+**Status:** Operational on both dev and production
+
+- Background Jobs System (v1.7.0)
+  - BullMQ + Redis integration
+  - ISO and template scanning workers
+  - ESXi import worker
+  - Activity logging for all job operations
+  - PM2 job-workers process
+- Deployment Automation (v1.7.0)
+  - Automated deployment scripts (PowerShell + Bash)
+  - Three deployment modes (quick, full, workers-only)
+  - Comprehensive deployment guide
+  - Production deployment completed
