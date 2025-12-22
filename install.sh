@@ -238,16 +238,59 @@ npm install >> "$LOG_FILE" 2>&1
 log "Building frontend..."
 npm run build >> "$LOG_FILE" 2>&1
 
-# Step 11: Configure Nginx
-log "[11/12] Configuring Nginx..."
+# Step 11: Generate SSL certificate
+log "[11/13] Generating self-signed SSL certificate..."
 
-cat > /etc/nginx/sites-available/multpanel << EOF
+# Create SSL directory
+mkdir -p /etc/nginx/ssl
+
+# Generate self-signed certificate (valid for 10 years)
+# This can be replaced with Let's Encrypt later
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+    -keyout /etc/nginx/ssl/multpanel.key \
+    -out /etc/nginx/ssl/multpanel.crt \
+    -subj "/C=US/ST=State/L=City/O=Organization/CN=$(hostname -I | awk '{print $1}')" \
+    >> "$LOG_FILE" 2>&1
+
+# Set proper permissions
+chmod 600 /etc/nginx/ssl/multpanel.key
+chmod 644 /etc/nginx/ssl/multpanel.crt
+
+log "Self-signed SSL certificate generated at /etc/nginx/ssl/multpanel.crt"
+
+# Step 12: Configure Nginx with SSL
+log "[12/13] Configuring Nginx with SSL..."
+
+cat > /etc/nginx/sites-available/multpanel << 'EOF'
+# HTTP server - redirect all traffic to HTTPS
 server {
     listen 80;
     server_name _;
 
+    # Redirect all HTTP requests to HTTPS
+    return 301 https://\$host\$request_uri;
+}
+
+# HTTPS server - main configuration
+server {
+    listen 443 ssl http2;
+    server_name _;
+
+    # SSL certificate configuration
+    ssl_certificate /etc/nginx/ssl/multpanel.crt;
+    ssl_certificate_key /etc/nginx/ssl/multpanel.key;
+
+    # SSL protocols and ciphers
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    # SSL session cache
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+
     # Frontend
-    root $APP_DIR/frontend/dist;
+    root /var/www/multpanelreact/frontend/dist;
     index index.html;
 
     # Gzip compression
@@ -264,7 +307,7 @@ server {
 
     # Backend API proxy
     location /api/ {
-        proxy_pass http://localhost:${BACKEND_PORT}/api/;
+        proxy_pass http://localhost:BACKEND_PORT_PLACEHOLDER/api/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -277,12 +320,30 @@ server {
         proxy_connect_timeout 75s;
     }
 
+    # WebSocket support for VM console (noVNC)
+    location /api/vms/console {
+        proxy_pass http://localhost:BACKEND_PORT_PLACEHOLDER/api/vms/console;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 }
 EOF
+
+# Replace backend port placeholder
+sed -i "s/BACKEND_PORT_PLACEHOLDER/${BACKEND_PORT}/g" /etc/nginx/sites-available/multpanel
 
 # Enable site
 ln -sf /etc/nginx/sites-available/multpanel /etc/nginx/sites-enabled/multpanel
@@ -295,8 +356,8 @@ nginx -t >> "$LOG_FILE" 2>&1
 systemctl restart nginx
 systemctl enable nginx
 
-# Step 12: Start PM2 services
-log "[12/12] Starting PM2 services..."
+# Step 13: Start PM2 services
+log "[13/13] Starting PM2 services..."
 cd "$APP_DIR/backend"
 
 # Create PM2 ecosystem file if not exists
@@ -337,10 +398,10 @@ pm2 delete all 2>/dev/null || true
 pm2 start ecosystem.config.js >> "$LOG_FILE" 2>&1
 pm2 save >> "$LOG_FILE" 2>&1
 
-# Step 13: Configure firewall
+# Configure firewall
 log "Configuring firewall..."
 ufw allow 22/tcp >> "$LOG_FILE" 2>&1  # SSH
-ufw allow 80/tcp >> "$LOG_FILE" 2>&1  # HTTP
+ufw allow 80/tcp >> "$LOG_FILE" 2>&1  # HTTP (will redirect to HTTPS)
 ufw allow 443/tcp >> "$LOG_FILE" 2>&1  # HTTPS
 echo "y" | ufw enable >> "$LOG_FILE" 2>&1 || true
 
@@ -356,10 +417,19 @@ echo ""
 info "Next steps:"
 echo "  1. Edit backend configuration: $APP_DIR/backend/.env"
 echo "  2. Configure SMTP settings for email notifications"
-echo "  3. Access the panel: http://$(hostname -I | awk '{print $1}')"
-echo "  4. Default admin credentials:"
+echo "  3. Access the panel: https://$(hostname -I | awk '{print $1}')"
+echo "     (HTTP will automatically redirect to HTTPS)"
+echo "  4. Accept the self-signed SSL certificate in your browser"
+echo "     (Or replace with Let's Encrypt: certbot --nginx -d your-domain.com)"
+echo "  5. Default admin credentials:"
 echo "     - Check database for initial admin user"
 echo "     - Or create manually via Prisma Studio: cd $APP_DIR/backend && npx prisma studio"
+echo ""
+info "SSL Certificate Information:"
+echo "  - Self-signed certificate: /etc/nginx/ssl/multpanel.crt"
+echo "  - Private key: /etc/nginx/ssl/multpanel.key"
+echo "  - Valid for: 10 years"
+echo "  - To replace with Let's Encrypt: certbot --nginx"
 echo ""
 info "MySQL root password saved to: /root/.mysql_root_password"
 info "Installation log: $LOG_FILE"

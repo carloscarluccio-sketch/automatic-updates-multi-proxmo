@@ -66,6 +66,24 @@ sudo ./install.sh
 
 3. Follow the post-installation steps displayed at the end
 
+### SSL Certificate
+
+The installation script automatically generates a **self-signed SSL certificate** valid for 10 years:
+- Certificate: `/etc/nginx/ssl/multpanel.crt`
+- Private key: `/etc/nginx/ssl/multpanel.key`
+
+**Important**: Your browser will show a security warning for self-signed certificates. You can:
+1. Accept the certificate (for testing/internal use)
+2. Replace with Let's Encrypt (recommended for production):
+```bash
+certbot --nginx -d your-domain.com
+```
+
+**Note**: All HTTP traffic is automatically redirected to HTTPS. The platform requires HTTPS for:
+- Secure authentication
+- VM console access (WebSocket over SSL)
+- Protected API communication
+
 ### Environment Configuration
 
 After installation, edit the configuration file:
@@ -332,9 +350,21 @@ module.exports = {
 
 ### Nginx Configuration (/etc/nginx/sites-available/multpanel)
 ```nginx
+# HTTP server - redirect to HTTPS
 server {
     listen 80;
     server_name _;
+    return 301 https://$host$request_uri;
+}
+
+# HTTPS server
+server {
+    listen 443 ssl http2;
+    server_name _;
+
+    ssl_certificate /etc/nginx/ssl/multpanel.crt;
+    ssl_certificate_key /etc/nginx/ssl/multpanel.key;
+
     root /var/www/multpanelreact/frontend/dist;
     index index.html;
 
@@ -348,7 +378,17 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_read_timeout 300s;
+    }
+
+    # WebSocket support for VM console
+    location /api/vms/console {
+        proxy_pass http://localhost:3001/api/vms/console;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_read_timeout 3600s;
     }
 }
 ```
