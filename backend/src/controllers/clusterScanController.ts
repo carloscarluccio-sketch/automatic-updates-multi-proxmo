@@ -1,0 +1,191 @@
+import { Request, Response } from 'express';
+import { PrismaClient } from '@prisma/client';
+import logger from '../utils/logger';
+import { isoScanQueue, templateScanQueue } from '../config/queueConfig';
+import { logJobActivity } from '../utils/activityLogger';
+
+const prisma = new PrismaClient();
+
+export const scanClusterISOs = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const clusterId = parseInt(req.params.id);
+    const user = (req as any).user;
+
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const cluster = await prisma.proxmox_clusters.findUnique({
+      where: { id: clusterId }
+    });
+
+    if (!cluster) {
+      res.status(404).json({ success: false, message: 'Cluster not found' });
+      return;
+    }
+
+    if (user.role !== 'super_admin' && cluster.company_id !== user.company_id) {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+
+    const job = await isoScanQueue.add(
+      'scan-isos',
+      { clusterId, userId: user.id },
+      { jobId: `iso-scan-${clusterId}-${Date.now()}` }
+    );
+
+    logger.info(`ISO scan job ${job.id} queued for cluster ${clusterId}`);
+
+    // Log job queued activity
+    await logJobActivity(
+      'queued',
+      'iso_scan',
+      job.id as string,
+      user.id,
+      cluster.company_id,
+      clusterId,
+      `Queued ISO scan for cluster: ${cluster.name || 'Unknown'}`,
+      'in_progress',
+      { cluster_name: cluster.name, cluster_id: clusterId }
+    );
+
+    res.json({
+      success: true,
+      jobId: job.id,
+      message: 'ISO scan started in background'
+    });
+  } catch (error: any) {
+    logger.error('Failed to queue ISO scan:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const scanClusterTemplates = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const clusterId = parseInt(req.params.id);
+    const user = (req as any).user;
+
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const cluster = await prisma.proxmox_clusters.findUnique({
+      where: { id: clusterId }
+    });
+
+    if (!cluster) {
+      res.status(404).json({ success: false, message: 'Cluster not found' });
+      return;
+    }
+
+    if (user.role !== 'super_admin' && cluster.company_id !== user.company_id) {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+
+    const job = await templateScanQueue.add(
+      'scan-templates',
+      { clusterId, userId: user.id },
+      { jobId: `template-scan-${clusterId}-${Date.now()}` }
+    );
+
+    logger.info(`Template scan job ${job.id} queued for cluster ${clusterId}`);
+
+    // Log job queued activity
+    await logJobActivity(
+      'queued',
+      'template_scan',
+      job.id as string,
+      user.id,
+      cluster.company_id,
+      clusterId,
+      `Queued template scan for cluster: ${cluster.name || 'Unknown'}`,
+      'in_progress',
+      { cluster_name: cluster.name, cluster_id: clusterId }
+    );
+
+    res.json({
+      success: true,
+      jobId: job.id,
+      message: 'Template scan started in background'
+    });
+  } catch (error: any) {
+    logger.error('Failed to queue template scan:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getClusterISOs = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const clusterId = parseInt(req.params.id);
+    const user = (req as any).user;
+
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const cluster = await prisma.proxmox_clusters.findUnique({
+      where: { id: clusterId }
+    });
+
+    if (!cluster) {
+      res.status(404).json({ success: false, message: 'Cluster not found' });
+      return;
+    }
+
+    if (user.role !== 'super_admin' && cluster.company_id !== user.company_id) {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+
+    const isos = await prisma.cluster_isos.findMany({
+      where: { cluster_id: clusterId },
+      orderBy: { name: 'asc' }
+    });
+
+    res.json({ success: true, isos });
+  } catch (error: any) {
+    logger.error('Failed to get cluster ISOs:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getClusterTemplates = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const clusterId = parseInt(req.params.id);
+    const user = (req as any).user;
+
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const cluster = await prisma.proxmox_clusters.findUnique({
+      where: { id: clusterId }
+    });
+
+    if (!cluster) {
+      res.status(404).json({ success: false, message: 'Cluster not found' });
+      return;
+    }
+
+    if (user.role !== 'super_admin' && cluster.company_id !== user.company_id) {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+
+    const templates = await prisma.cluster_templates.findMany({
+      where: { cluster_id: clusterId },
+      orderBy: { name: 'asc' }
+    });
+
+    res.json({ success: true, templates });
+  } catch (error: any) {
+    logger.error('Failed to get cluster templates:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

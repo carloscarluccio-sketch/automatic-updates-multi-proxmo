@@ -4231,6 +4231,33 @@ model whitelabel_settings {
   companies                   companies                            @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "whitelabel_settings_ibfk_1")
 }
 
+model cluster_isos {
+  id              Int       @id @default(autoincrement())
+  cluster_id      Int
+  volid           String    @db.VarChar(500)
+  name            String    @db.VarChar(255)
+  size_bytes      BigInt?   @default(0)
+  storage         String?   @db.VarChar(100)
+  last_scanned_at DateTime? @default(now()) @db.Timestamp(0)
+
+  @@index([cluster_id], map: "idx_cluster")
+}
+
+model cluster_templates {
+  id              Int       @id @default(autoincrement())
+  cluster_id      Int
+  vmid            Int
+  name            String    @db.VarChar(255)
+  node            String?   @db.VarChar(100)
+  template        Boolean?  @default(true)
+  cpu_cores       Int?
+  memory_mb       Int?
+  disk_gb         Decimal?  @db.Decimal(10, 2)
+  last_scanned_at DateTime? @default(now()) @db.Timestamp(0)
+
+  @@index([cluster_id], map: "idx_cluster")
+}
+
 enum bulk_cluster_operations_operation_type {
   test_connection
   restart_service
@@ -4931,10 +4958,10 @@ enum notification_queue_priority {
 }
 
 enum onboarding_registrations_company_size {
-  SIZE_1_10 @map("1-10")
-  SIZE_11_50 @map("11-50")
-  SIZE_51_200 @map("51-200")
-  SIZE_201_500 @map("201-500")
+  SIZE_1_10     @map("1-10")
+  SIZE_11_50    @map("11-50")
+  SIZE_51_200   @map("51-200")
+  SIZE_201_500  @map("201-500")
   SIZE_500_PLUS @map("500+")
 }
 
@@ -5436,13 +5463,6 @@ enum company_payment_methods_bank_account_type {
   business
 }
 
-enum subscription_plans_support_level {
-  none
-  email
-  priority
-  // 24/7 @map("24/7")
-}
-
 enum dr_zfs_replication_jobs_sync_status {
   idle
   syncing
@@ -5520,4 +5540,11 @@ enum company_url_mappings_white_label_level {
   standard
   premium
   enterprise
+}
+
+enum subscription_plans_support_level {
+  none
+  email
+  priority
+  // 24/7 @map("24/7")
 }

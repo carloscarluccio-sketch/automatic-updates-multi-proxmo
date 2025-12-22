@@ -234,3 +234,139 @@ export const logNetworkActivity = async (
     req,
   });
 };
+
+/**
+ * Log background job operations
+ */
+export const logJobActivity = async (
+  action: 'queued' | 'started' | 'completed' | 'failed' | 'cancelled',
+  jobType: 'iso_scan' | 'template_scan' | 'esxi_import' | 'vm_discovery',
+  jobId: string,
+  userId: number | null,
+  companyId: number | null,
+  clusterId: number | null,
+  description: string,
+  status: 'success' | 'failed' | 'in_progress' | 'warning' = 'success',
+  metadata?: Record<string, any>
+): Promise<void> => {
+  await logActivity({
+    userId: userId || 1, // Use system user if no userId provided
+    companyId,
+    activityType: 'background_job',
+    entityType: jobType,
+    entityId: clusterId,
+    action,
+    description,
+    status,
+    metadata: {
+      ...metadata,
+      job_id: jobId,
+      job_type: jobType
+    }
+  });
+};
+
+/**
+ * Log ISO scan operations
+ */
+export const logISOScanActivity = async (
+  action: 'scan_started' | 'scan_completed' | 'scan_failed',
+  clusterId: number,
+  clusterName: string,
+  userId: number | null,
+  companyId: number | null,
+  status: 'success' | 'failed' | 'in_progress' = 'success',
+  metadata?: Record<string, any>
+): Promise<void> => {
+  const descriptions = {
+    scan_started: `Started ISO scan on cluster: ${clusterName}`,
+    scan_completed: `Completed ISO scan on cluster: ${clusterName} - Found ${metadata?.iso_count || 0} ISOs`,
+    scan_failed: `Failed ISO scan on cluster: ${clusterName} - ${metadata?.error || 'Unknown error'}`
+  };
+
+  await logActivity({
+    userId: userId || 1,
+    companyId,
+    activityType: 'cluster_scan',
+    entityType: 'cluster',
+    entityId: clusterId,
+    action,
+    description: descriptions[action],
+    status,
+    metadata: {
+      ...metadata,
+      scan_type: 'iso'
+    }
+  });
+};
+
+/**
+ * Log template scan operations
+ */
+export const logTemplateScanActivity = async (
+  action: 'scan_started' | 'scan_completed' | 'scan_failed',
+  clusterId: number,
+  clusterName: string,
+  userId: number | null,
+  companyId: number | null,
+  status: 'success' | 'failed' | 'in_progress' = 'success',
+  metadata?: Record<string, any>
+): Promise<void> => {
+  const descriptions = {
+    scan_started: `Started template scan on cluster: ${clusterName}`,
+    scan_completed: `Completed template scan on cluster: ${clusterName} - Found ${metadata?.template_count || 0} templates`,
+    scan_failed: `Failed template scan on cluster: ${clusterName} - ${metadata?.error || 'Unknown error'}`
+  };
+
+  await logActivity({
+    userId: userId || 1,
+    companyId,
+    activityType: 'cluster_scan',
+    entityType: 'cluster',
+    entityId: clusterId,
+    action,
+    description: descriptions[action],
+    status,
+    metadata: {
+      ...metadata,
+      scan_type: 'template'
+    }
+  });
+};
+
+/**
+ * Log ESXi import operations
+ */
+export const logESXiImportActivity = async (
+  action: 'import_started' | 'import_completed' | 'import_failed',
+  vmName: string,
+  esxiHostId: number,
+  clusterId: number,
+  userId: number | null,
+  companyId: number | null,
+  status: 'success' | 'failed' | 'in_progress' = 'success',
+  metadata?: Record<string, any>
+): Promise<void> => {
+  const descriptions = {
+    import_started: `Started ESXi VM import: ${vmName}`,
+    import_completed: `Completed ESXi VM import: ${vmName} - VMID ${metadata?.vmid || 'Unknown'}`,
+    import_failed: `Failed ESXi VM import: ${vmName} - ${metadata?.error || 'Unknown error'}`
+  };
+
+  await logActivity({
+    userId: userId || 1,
+    companyId,
+    activityType: 'esxi_import',
+    entityType: 'virtual_machine',
+    entityId: metadata?.vmid || null,
+    action,
+    description: descriptions[action],
+    status,
+    metadata: {
+      ...metadata,
+      esxi_host_id: esxiHostId,
+      target_cluster_id: clusterId,
+      vm_name: vmName
+    }
+  });
+};
