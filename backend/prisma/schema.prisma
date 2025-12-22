@@ -3617,6 +3617,7 @@ model users {
   @@index([company_id], map: "idx_company")
   @@index([email], map: "idx_email")
   @@index([profile_id], map: "idx_profile")
+  system_updates                                                      system_updates[]
   @@index([status], map: "idx_status")
   @@index([username], map: "idx_username")
   @@index([company_id], map: "idx_users_company")
@@ -5547,4 +5548,38 @@ enum subscription_plans_support_level {
   email
   priority
   // 24/7 @map("24/7")
+}
+
+model system_updates {
+  id                Int       @id @default(autoincrement())
+  version_from      String    @db.VarChar(50)
+  version_to        String    @db.VarChar(50)
+  update_type       String    @db.VarChar(50)
+  status            String    @db.VarChar(50)
+  backup_file       String?   @db.VarChar(500)
+  started_at        DateTime  @default(now())
+  completed_at      DateTime?
+  duration_seconds  Int?
+  initiated_by      Int
+  error_message     String?   @db.Text
+  changelog         String?   @db.Text
+  git_commit_hash   String?   @db.VarChar(40)
+  user              users     @relation(fields: [initiated_by], references: [id])
+
+  @@index([status])
+  @@index([started_at])
+  @@map("system_updates")
+}
+
+model system_info {
+  id                  Int       @id @default(1)
+  current_version     String    @default("v1.7.0") @db.VarChar(50)
+  git_commit_hash     String?   @db.VarChar(40)
+  last_update_check   DateTime?
+  last_updated_at     DateTime?
+  installation_date   DateTime  @default(now())
+  instance_id         String?   @db.VarChar(100)
+  instance_name       String?   @db.VarChar(200)
+
+  @@map("system_info")
 }

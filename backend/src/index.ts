@@ -78,6 +78,8 @@ import notificationSettingsRoutes from './routes/notificationSettingsRoutes';
 import emailSettingsRoutes from './routes/emailSettingsRoutes';
 import paymentMethodsRoutes from './routes/paymentMethodsRoutes';
 import subscriptionRoutes from './routes/subscriptionRoutes';
+import updateRoutes from './routes/updateRoutes';
+import jobsRoutes from './routes/jobsRoutes';
 
 const app = express();
 
@@ -153,6 +155,7 @@ app.use('/api/logs', activityLogsRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/opnsense', opnsenseRoutes);
 app.use('/api/vm-import', vmImportRoutes);
+app.use('/api/jobs', jobsRoutes);
 app.use('/api/pricing-plans', pricingPlanRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/pricing', pricingRoutes);
@@ -188,6 +191,7 @@ app.use('/api/admin/onboarding', onboardingRoutes);
 app.use('/api/email', emailSettingsRoutes);
 app.use('/api/payment', paymentMethodsRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/system/updates', updateRoutes);
 
 
 // 404 handler

@@ -57,6 +57,7 @@ import SpeedIcon from '@mui/icons-material/Speed';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import MonitorIcon from '@mui/icons-material/Monitor';
 import AlarmIcon from '@mui/icons-material/Alarm';
+import SystemUpdateIcon from '@mui/icons-material/SystemUpdate';
 import { useAuthStore } from '../../store/authStore';
 import { authService } from '../../services/authService';
 import { useBranding } from '../../theme/DynamicThemeProvider';
@@ -127,6 +128,7 @@ export const MainLayout: React.FC = () => {
         { label: 'VM Templates', path: '/vm-templates', icon: <DescriptionIcon /> },
         { label: 'Backup Policies', path: '/backup-policies', icon: <BackupIcon /> },
         { label: 'Backup Schedules', path: '/backup-schedules', icon: <ScheduleIcon /> },
+        { label: 'System Updates', path: '/system-updates', icon: <SystemUpdateIcon />, roles: ['super_admin'] },
         { label: 'Snapshot Schedules', path: '/snapshot-schedules', icon: <CameraAltIcon /> },
         { label: 'DR Cluster Pairs', path: '/dr-cluster-pairs', icon: <SyncIcon /> },
         { label: 'DR Test Schedules', path: '/dr-test-schedules', icon: <PlaylistAddCheckIcon /> },

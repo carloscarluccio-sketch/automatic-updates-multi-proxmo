@@ -35,6 +35,7 @@ import UsageDashboardPage from './pages/UsageDashboardPage';
 import InvoiceManagementPage from './pages/InvoiceManagementPage';
 import ApiDocsPage from './pages/ApiDocsPage';
 import BackupSchedulesPage from './pages/BackupSchedulesPage';
+import SystemUpdatesPage from './pages/SystemUpdatesPage';
 import SnapshotSchedulesPage from './pages/SnapshotSchedulesPage';
 import DRTestSchedulesPage from './pages/DRTestSchedulesPage';
 import DRClusterPairsPage from './pages/DRClusterPairsPage';
@@ -106,6 +107,7 @@ function App() {
             <Route path="usage-dashboard" element={<UsageDashboardPage />} />
             <Route path="invoices" element={<InvoiceManagementPage />} />
             <Route path="pricing" element={<PricingManagementPage />} />
+            <Route path="system-updates" element={<SystemUpdatesPage />} />
             <Route path="backup-schedules" element={<BackupSchedulesPage />} />
             <Route path="snapshot-schedules" element={<SnapshotSchedulesPage />} />
             <Route path="dr-test-schedules" element={<DRTestSchedulesPage />} />
