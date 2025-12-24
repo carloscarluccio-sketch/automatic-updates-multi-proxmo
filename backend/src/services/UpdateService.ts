@@ -112,6 +112,7 @@ export class UpdateService {
         data: {
           version_from: currentVersion,
           version_to: targetVersion,
+    // @ts-ignore
           update_type: this.determineUpdateType(currentVersion, targetVersion),
           status: 'pending',
           initiated_by: userId

@@ -6,10 +6,13 @@ import {
   updateESXiHost,
   deleteESXiHost,
   testESXiConnection,
-  discoverVMs,
-  getDiscoveredVMs,
-  importVMsToProxmox,
 } from '../controllers/esxiController';
+import {
+  initProxmoxImport,
+  executeProxmoxImport,
+  getImportProgress,
+  cleanupProxmoxImport,
+} from '../controllers/proxmoxESXiImportController';
 import { authenticate } from '../middlewares/auth';
 
 const router = Router();
@@ -23,11 +26,12 @@ router.get('/:id', getESXiHost);
 router.post('/', createESXiHost);
 router.put('/:id', updateESXiHost);
 router.delete('/:id', deleteESXiHost);
-
-// ESXi connection and discovery routes
 router.post('/:id/test', testESXiConnection);
-router.post('/:id/discover', discoverVMs);
-router.get('/:id/discovered-vms', getDiscoveredVMs);
-router.post('/:id/import', importVMsToProxmox);
+
+// Proxmox native import routes
+router.post('/:id/proxmox-import/init', initProxmoxImport);
+router.post('/:id/proxmox-import/execute', executeProxmoxImport);
+router.get('/:id/proxmox-import/progress', getImportProgress);
+router.delete('/:id/proxmox-import/cleanup', cleanupProxmoxImport);
 
 export default router;

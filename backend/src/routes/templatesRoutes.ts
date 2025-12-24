@@ -1,23 +1,24 @@
+// Template Management Routes
 import express from 'express';
 import {
   getTemplates,
-  getTemplate,
-  createTemplate,
-  updateTemplate,
-  deleteTemplate,
-  cloneFromTemplate,
+  getTemplateDetails,
+  markAsTemplate,
+  unmarkAsTemplate
 } from '../controllers/templatesController';
-import { authenticate } from '../middlewares/auth';
 
 const router = express.Router();
 
-router.use(authenticate);
-
+// Get all templates
 router.get('/', getTemplates);
-router.get('/:id', getTemplate);
-router.post('/', createTemplate);
-router.put('/:id', updateTemplate);
-router.delete('/:id', deleteTemplate);
-router.post('/:id/clone', cloneFromTemplate);
+
+// Get single template details
+router.get('/:id', getTemplateDetails);
+
+// Mark VM as template
+router.post('/:id/mark-template', markAsTemplate);
+
+// Unmark VM as template
+router.post('/:id/unmark-template', unmarkAsTemplate);
 
 export default router;

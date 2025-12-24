@@ -80,6 +80,7 @@ import paymentMethodsRoutes from './routes/paymentMethodsRoutes';
 import subscriptionRoutes from './routes/subscriptionRoutes';
 import updateRoutes from './routes/updateRoutes';
 import jobsRoutes from './routes/jobsRoutes';
+import vdiIntegrationRoutes from './routes/vdiIntegrationRoutes';
 
 const app = express();
 
@@ -141,7 +142,6 @@ app.use('/api/bulk-clusters', bulkClusterRoutes);
 app.use('/api/ip-ranges', ipRangesRoutes);
 app.use('/api/projects', projectsRoutes);
 app.use('/api/stats', statsRoutes);
-app.use('/api/templates', templatesRoutes);
 app.use('/api/isos', isosRoutes);
 app.use('/api/tokens', apiTokensRoutes);
 app.use('/api/profiles', profilesRoutes);
@@ -192,6 +192,8 @@ app.use('/api/email', emailSettingsRoutes);
 app.use('/api/payment', paymentMethodsRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/system/updates', updateRoutes);
+app.use('/api/vdi-integration', vdiIntegrationRoutes);
+app.use('/api/templates', templatesRoutes);
 
 
 // 404 handler

@@ -91,11 +91,6 @@ export async function executeSSHCommand(
     });
 
     // Decrypt password and connect
-      console.log("=== SSH CONNECTION ATTEMPT ===");
-      console.log("Host:", host);
-      console.log("Port:", port);
-      console.log("Username:", username);
-      console.log("Timeout:", timeout);
     try {
       const password = decrypt(encryptedPassword);
 

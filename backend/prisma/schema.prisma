@@ -560,6 +560,33 @@ model cluster_backup_servers {
   @@index([backup_server_id], map: "idx_cluster_backup_server")
 }
 
+model cluster_isos {
+  id              Int       @id @default(autoincrement())
+  cluster_id      Int
+  volid           String    @db.VarChar(500)
+  name            String    @db.VarChar(255)
+  size_bytes      BigInt?   @default(0)
+  storage         String?   @db.VarChar(100)
+  last_scanned_at DateTime? @default(now()) @db.Timestamp(0)
+
+  @@index([cluster_id], map: "idx_cluster")
+}
+
+model cluster_templates {
+  id              Int       @id @default(autoincrement())
+  cluster_id      Int
+  vmid            Int
+  name            String    @db.VarChar(255)
+  node            String?   @db.VarChar(100)
+  template        Boolean?  @default(true)
+  cpu_cores       Int?
+  memory_mb       Int?
+  disk_gb         Decimal?  @db.Decimal(10, 2)
+  last_scanned_at DateTime? @default(now()) @db.Timestamp(0)
+
+  @@index([cluster_id], map: "idx_cluster")
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model companies {
@@ -3268,6 +3295,18 @@ model support_tickets {
   @@index([vm_id], map: "vm_id")
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model system_info {
+  id                Int       @id @default(1)
+  current_version   String    @default("v1.7.0") @db.VarChar(50)
+  git_commit_hash   String?   @db.VarChar(40)
+  last_update_check DateTime? @db.Timestamp(0)
+  last_updated_at   DateTime? @db.Timestamp(0)
+  installation_date DateTime? @default(now()) @db.Timestamp(0)
+  instance_id       String?   @db.VarChar(100)
+  instance_name     String?   @db.VarChar(200)
+}
+
 model system_settings {
   id            Int       @id @default(autoincrement())
   setting_key   String    @unique(map: "setting_key") @db.VarChar(100)
@@ -3276,6 +3315,27 @@ model system_settings {
   updated_at    DateTime? @default(now()) @db.Timestamp(0)
 
   @@index([setting_key], map: "idx_setting_key")
+}
+
+model system_updates {
+  id               Int                        @id @default(autoincrement())
+  version_from     String                     @db.VarChar(50)
+  version_to       String                     @db.VarChar(50)
+  update_type      system_updates_update_type @default(patch)
+  status           system_updates_status      @default(pending)
+  backup_file      String?                    @db.VarChar(500)
+  started_at       DateTime?                  @default(now()) @db.Timestamp(0)
+  completed_at     DateTime?                  @db.Timestamp(0)
+  duration_seconds Int?
+  initiated_by     Int
+  error_message    String?                    @db.Text
+  changelog        String?                    @db.Text
+  git_commit_hash  String?                    @db.VarChar(40)
+  users            users                      @relation(fields: [initiated_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "system_updates_ibfk_1")
+
+  @@index([started_at], map: "idx_started_at")
+  @@index([status], map: "idx_status")
+  @@index([initiated_by], map: "initiated_by")
 }
 
 model ui_customizations {
@@ -3591,6 +3651,7 @@ model users {
   support_ticket_messages                                             support_ticket_messages[]
   support_tickets_support_tickets_created_byTousers                   support_tickets[]          @relation("support_tickets_created_byTousers")
   support_tickets_support_tickets_assigned_toTousers                  support_tickets[]          @relation("support_tickets_assigned_toTousers")
+  system_updates                                                      system_updates[]
   user_2fa                                                            user_2fa?
   user_2fa_backup_codes                                               user_2fa_backup_codes[]
   user_2fa_logs                                                       user_2fa_logs[]
@@ -3617,7 +3678,6 @@ model users {
   @@index([company_id], map: "idx_company")
   @@index([email], map: "idx_email")
   @@index([profile_id], map: "idx_profile")
-  system_updates                                                      system_updates[]
   @@index([status], map: "idx_status")
   @@index([username], map: "idx_username")
   @@index([company_id], map: "idx_users_company")
@@ -3640,6 +3700,7 @@ model virtual_machines {
   primary_ip_internal      String?                  @db.VarChar(50)
   primary_ip_external      String?                  @db.VarChar(50)
   status                   virtual_machines_status? @default(unknown)
+  is_template              Boolean?                 @default(false)
   last_activity_at         DateTime?                @db.Timestamp(0)
   template_id              Int?
   ip_address               String?                  @db.VarChar(45)
@@ -3699,6 +3760,7 @@ model virtual_machines {
   @@index([company_id], map: "idx_company")
   @@index([company_id, project_id], map: "idx_company_project")
   @@index([imported_from_esxi, esxi_import_job_id], map: "idx_esxi_import")
+  @@index([is_template], map: "idx_is_template")
   @@index([primary_ip_internal, primary_ip_external], map: "idx_primary_ips")
   @@index([project_id], map: "idx_project")
   @@index([status], map: "idx_status")
@@ -4232,33 +4294,6 @@ model whitelabel_settings {
   companies                   companies                            @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "whitelabel_settings_ibfk_1")
 }
 
-model cluster_isos {
-  id              Int       @id @default(autoincrement())
-  cluster_id      Int
-  volid           String    @db.VarChar(500)
-  name            String    @db.VarChar(255)
-  size_bytes      BigInt?   @default(0)
-  storage         String?   @db.VarChar(100)
-  last_scanned_at DateTime? @default(now()) @db.Timestamp(0)
-
-  @@index([cluster_id], map: "idx_cluster")
-}
-
-model cluster_templates {
-  id              Int       @id @default(autoincrement())
-  cluster_id      Int
-  vmid            Int
-  name            String    @db.VarChar(255)
-  node            String?   @db.VarChar(100)
-  template        Boolean?  @default(true)
-  cpu_cores       Int?
-  memory_mb       Int?
-  disk_gb         Decimal?  @db.Decimal(10, 2)
-  last_scanned_at DateTime? @default(now()) @db.Timestamp(0)
-
-  @@index([cluster_id], map: "idx_cluster")
-}
-
 enum bulk_cluster_operations_operation_type {
   test_connection
   restart_service
@@ -4599,6 +4634,13 @@ enum storage_pools_storage_type {
   glusterfs
 }
 
+enum system_updates_update_type {
+  major
+  minor
+  patch
+  hotfix
+}
+
 enum user_vm_permissions_permission_level {
   read
   write
@@ -4706,6 +4748,14 @@ enum security_audit_log_severity {
   medium
   high
   critical
+}
+
+enum system_updates_status {
+  pending
+  in_progress
+  completed
+  failed
+  rolled_back
 }
 
 enum usage_metrics_metric_type {
@@ -4959,11 +5009,11 @@ enum notification_queue_priority {
 }
 
 enum onboarding_registrations_company_size {
-  SIZE_1_10     @map("1-10")
-  SIZE_11_50    @map("11-50")
-  SIZE_51_200   @map("51-200")
-  SIZE_201_500  @map("201-500")
-  SIZE_500_PLUS @map("500+")
+  // 1-10 @map("1-10")
+  // 11-50 @map("11-50")
+  // 51-200 @map("51-200")
+  // 201-500 @map("201-500")
+  // 500+ @map("500+")
 }
 
 enum quota_approval_requests_status {
@@ -5377,6 +5427,7 @@ enum virtual_machines_status {
   deleted
   pending_deletion
   unknown
+  template
 }
 
 enum company_url_mappings_ssl_status {
@@ -5464,6 +5515,13 @@ enum company_payment_methods_bank_account_type {
   business
 }
 
+enum subscription_plans_support_level {
+  none
+  email
+  priority
+  // 24/7 @map("24/7")
+}
+
 enum dr_zfs_replication_jobs_sync_status {
   idle
   syncing
@@ -5541,45 +5599,4 @@ enum company_url_mappings_white_label_level {
   standard
   premium
   enterprise
-}
-
-enum subscription_plans_support_level {
-  none
-  email
-  priority
-  // 24/7 @map("24/7")
-}
-
-model system_updates {
-  id                Int       @id @default(autoincrement())
-  version_from      String    @db.VarChar(50)
-  version_to        String    @db.VarChar(50)
-  update_type       String    @db.VarChar(50)
-  status            String    @db.VarChar(50)
-  backup_file       String?   @db.VarChar(500)
-  started_at        DateTime  @default(now())
-  completed_at      DateTime?
-  duration_seconds  Int?
-  initiated_by      Int
-  error_message     String?   @db.Text
-  changelog         String?   @db.Text
-  git_commit_hash   String?   @db.VarChar(40)
-  user              users     @relation(fields: [initiated_by], references: [id])
-
-  @@index([status])
-  @@index([started_at])
-  @@map("system_updates")
-}
-
-model system_info {
-  id                  Int       @id @default(1)
-  current_version     String    @default("v1.7.0") @db.VarChar(50)
-  git_commit_hash     String?   @db.VarChar(40)
-  last_update_check   DateTime?
-  last_updated_at     DateTime?
-  installation_date   DateTime  @default(now())
-  instance_id         String?   @db.VarChar(100)
-  instance_name       String?   @db.VarChar(200)
-
-  @@map("system_info")
 }
